@@ -1,0 +1,53 @@
+# ---- VCS ----
+.git/
+.gitignore
+.gitattributes
+
+# ---- Build artefacts ----
+target/
+out/
+*.class
+
+# ---- IDE ----
+.idea/
+*.iml
+.vscode/
+.history/
+.classpath
+.project
+.settings/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- Docs ----
+docs/
+*.md
+
+# ---- Tests / coverage ----
+jacoco.exec
+coverage/
+
+# ---- Secrets ----
+.env
+.env.*
+*.pem
+*.key
+*.p12
+
+# ---- Docker meta ----
+Dockerfile
+docker-compose*.yml
+.dockerignore
+docker/
+
+# ---- CI ----
+.github/
+
+# ---- Scripts hors build ----
+scripts/
+
+# ---- Divers ----
+LICENSE
+Makefile
