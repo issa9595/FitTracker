@@ -1,0 +1,28 @@
+# ============================================================
+# FitTracker - surcharges DEV pour docker compose
+# Applique automatiquement par 'docker compose up'.
+# - Force le profil 'dev' (logs console texte coloree).
+# - Expose les ports app/db/redis sur l'hote pour debug direct.
+# - Monte target/fittracker.jar sur /app/app.jar pour iterer
+#   rapidement apres un ./mvnw package sans rebuild d'image.
+# ============================================================
+
+services:
+  app:
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      ACTUATOR_EXPOSE: health,info,env,metrics,mappings,configprops
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    volumes:
+      # Hot-iteration : apres './mvnw package', un 'docker compose restart app'
+      # suffit pour repartir avec le nouveau jar.
+      - ./target/fittracker.jar:/app/app.jar:ro
+
+  db:
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  redis:
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
