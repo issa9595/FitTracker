@@ -30,6 +30,8 @@
         <spotless.version>2.43.0</spotless.version>
         <checkstyle.maven.plugin.version>3.5.0</checkstyle.maven.plugin.version>
         <checkstyle.version>10.18.1</checkstyle.version>
+
+        <logstash.logback.encoder.version>8.0</logstash.logback.encoder.version>
     </properties>
 
     <dependencies>
@@ -44,6 +46,25 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Observability: traceId/spanId in MDC for log correlation -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+
+        <!-- Structured JSON logging (prod profile) -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>${logstash.logback.encoder.version}</version>
+        </dependency>
+
+        <!-- Required for conditional <if> blocks in logback-spring.xml -->
+        <dependency>
+            <groupId>org.codehaus.janino</groupId>
+            <artifactId>janino</artifactId>
         </dependency>
 
         <dependency>
