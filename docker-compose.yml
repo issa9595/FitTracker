@@ -91,7 +91,7 @@ services:
       # Phase 6 : monter les certificats TLS
       # - ./docker/nginx/certs:/etc/nginx/certs:ro
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost/health >/dev/null 2>&1 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

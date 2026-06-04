@@ -152,7 +152,10 @@ jobs:
             echo "Service $svc: $status"
             if [ "$status" != "healthy" ]; then
               echo "::error::Service $svc is not healthy"
-              docker compose logs $svc | tail -50
+              echo "---- Container logs ----"
+              docker compose logs $svc | tail -100
+              echo "---- Healthcheck output ----"
+              docker inspect --format='{{json .State.Health}}' fittracker-$svc-1 || true
               exit 1
             fi
           done
