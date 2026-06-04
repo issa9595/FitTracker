@@ -169,10 +169,12 @@ jobs:
             status=$(docker inspect --format='{{.State.Health.Status}}' fittracker-$svc-1 2>/dev/null || echo "missing")
             echo "==== Service $svc: $status ===="
             if [ "$status" != "healthy" ]; then
-              echo "---- Last 5 healthcheck logs ----"
-              docker inspect --format='{{range .State.Health.Log}}{{.Output}}{{println "---"}}{{end}}' fittracker-$svc-1 2>/dev/null || true
+              echo "---- Healthcheck JSON (exit codes + output) ----"
+              docker inspect fittracker-$svc-1 --format='{{json .State.Health}}' 2>/dev/null | jq '.Log[-5:]' 2>/dev/null || docker inspect fittracker-$svc-1 --format='{{json .State.Health}}' 2>/dev/null || true
               echo "---- Container logs (last 100 lines) ----"
               docker compose logs --tail=100 $svc 2>&1 || true
+              echo "---- Image inspect (basic) ----"
+              docker compose exec -T $svc sh -c "which wget; wget --help 2>&1 | head -3" || true
             fi
           done
 
