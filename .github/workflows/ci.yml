@@ -128,34 +128,61 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Boot stack with prod profile (no dev override)
-        env:
-          SPRING_PROFILES_ACTIVE: prod
-          POSTGRES_PASSWORD: ci-only-not-a-secret
         run: |
           cp .env.example .env
-          # Surcharge des secrets de ci dans .env
           {
             echo "SPRING_PROFILES_ACTIVE=prod"
             echo "POSTGRES_PASSWORD=ci-only-not-a-secret"
             echo "SPRING_DATASOURCE_PASSWORD=ci-only-not-a-secret"
           } >> .env
-          docker compose -f docker-compose.yml up -d --build --wait --wait-timeout 180
+          docker compose -f docker-compose.yml up -d --build
+
+      - name: Wait up to 180s for all services healthy
+        run: |
+          set +e
+          DEADLINE=$(( $(date +%s) + 180 ))
+          while [ $(date +%s) -lt $DEADLINE ]; do
+            all_healthy=true
+            for svc in app db redis nginx; do
+              status=$(docker inspect --format='{{.State.Health.Status}}' fittracker-$svc-1 2>/dev/null || echo "missing")
+              if [ "$status" != "healthy" ]; then
+                all_healthy=false
+                break
+              fi
+            done
+            if $all_healthy; then
+              echo "All services healthy."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::warning::Timeout reached, some services not healthy."
 
       - name: List services and statuses
+        if: always()
         run: docker compose ps
 
-      - name: Verify all services healthy
+      - name: Diagnose unhealthy services
+        if: always()
+        run: |
+          for svc in app db redis nginx; do
+            status=$(docker inspect --format='{{.State.Health.Status}}' fittracker-$svc-1 2>/dev/null || echo "missing")
+            echo "==== Service $svc: $status ===="
+            if [ "$status" != "healthy" ]; then
+              echo "---- Last 5 healthcheck logs ----"
+              docker inspect --format='{{range .State.Health.Log}}{{.Output}}{{println "---"}}{{end}}' fittracker-$svc-1 2>/dev/null || true
+              echo "---- Container logs (last 100 lines) ----"
+              docker compose logs --tail=100 $svc 2>&1 || true
+            fi
+          done
+
+      - name: Fail if any service unhealthy
         run: |
           set -e
           for svc in app db redis nginx; do
             status=$(docker inspect --format='{{.State.Health.Status}}' fittracker-$svc-1 2>/dev/null || echo "missing")
-            echo "Service $svc: $status"
             if [ "$status" != "healthy" ]; then
-              echo "::error::Service $svc is not healthy"
-              echo "---- Container logs ----"
-              docker compose logs $svc | tail -100
-              echo "---- Healthcheck output ----"
-              docker inspect --format='{{json .State.Health}}' fittracker-$svc-1 || true
+              echo "::error::Service $svc is $status"
               exit 1
             fi
           done
