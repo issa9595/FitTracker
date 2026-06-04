@@ -1,0 +1,109 @@
+# ============================================================
+# FitTracker - docker-compose (configuration de base, profil prod).
+# Quatre services : app (Spring Boot), db (PostgreSQL 16), redis (7-alpine),
+# nginx (reverse-proxy + TLS terminaison en phase 6).
+# Lance avec :
+#   docker compose up -d
+# Le fichier docker-compose.override.yml est applique automatiquement et
+# fournit les surcharges dev (exposition de ports, JAR monte en volume).
+# ============================================================
+
+name: fittracker
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${REGISTRY:-ghcr.io/issa9595}/${IMAGE_NAME:-fittracker}:${IMAGE_TAG:-local}
+    env_file:
+      - .env
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-fittracker}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-fittracker}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-fittracker}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - fittracker-net
+    restart: unless-stopped
+    # Le HEALTHCHECK est defini dans le Dockerfile (wget /actuator/health)
+    expose:
+      - "8080"
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fittracker}
+      POSTGRES_USER: ${POSTGRES_USER:-fittracker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fittracker}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fittracker} -d ${POSTGRES_DB:-fittracker}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - fittracker-net
+    restart: unless-stopped
+    # Pas de port expose en prod (acces via le reseau interne uniquement).
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --appendonly yes
+      --save 60 1
+      ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - fittracker-net
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      # HTTPS active en phase 6 quand le certificat self-signed est en place
+      # - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      # Phase 6 : monter les certificats TLS
+      # - ./docker/nginx/certs:/etc/nginx/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - fittracker-net
+    restart: unless-stopped
+
+networks:
+  fittracker-net:
+    driver: bridge
+
+volumes:
+  pg-data:
+  redis-data:

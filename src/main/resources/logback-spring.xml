@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  FitTracker - configuration Logback.
+  - Profil dev : console texte coloree, lisible humainement, niveau INFO.
+  - Profil prod : JSON structure (LogstashEncoder), un evenement par ligne,
+    inclut traceId/spanId injectes par Micrometer Tracing dans le MDC.
+    Optionnellement un fichier rotatif (100 Mo, historique 7 jours)
+    si LOG_FILE_ENABLED=true (par defaut OFF pour respecter 12-Factor XI :
+    les logs sont des flux d'evenements, on ecrit sur stdout).
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <springProperty scope="context" name="appName"
+                    source="spring.application.name" defaultValue="fittracker"/>
+    <springProperty scope="context" name="logFilePath"
+                    source="logging.file.path" defaultValue="./logs"/>
+    <springProperty scope="context" name="logFileEnabled"
+                    source="logging.file.enabled" defaultValue="false"/>
+
+    <!-- ============================================================
+         Profil dev / default / test : console texte coloree
+         ============================================================ -->
+    <springProfile name="dev | default | test">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) [%thread] [%X{traceId:-},%X{spanId:-}] %cyan(%logger{40}) - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="${LOG_LEVEL_ROOT:-INFO}">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- ============================================================
+         Profil prod : JSON structure sur stdout + fichier rotatif optionnel
+         ============================================================ -->
+    <springProfile name="prod">
+        <appender name="JSON_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <includeMdcKeyName>traceId</includeMdcKeyName>
+                <includeMdcKeyName>spanId</includeMdcKeyName>
+                <customFields>{"app":"${appName}"}</customFields>
+                <fieldNames>
+                    <timestamp>@timestamp</timestamp>
+                    <message>message</message>
+                    <thread>thread</thread>
+                    <logger>logger</logger>
+                    <level>level</level>
+                    <levelValue>[ignore]</levelValue>
+                </fieldNames>
+            </encoder>
+        </appender>
+
+        <!-- Fichier rotatif : ne s'active que si logging.file.enabled=true.
+             Permet de respecter l'exigence du brief tout en gardant
+             la conformite 12-Factor XI par defaut (stdout uniquement). -->
+        <if condition='property("logFileEnabled").equalsIgnoreCase("true")'>
+            <then>
+                <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                    <file>${logFilePath}/app.log</file>
+                    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                        <fileNamePattern>${logFilePath}/app-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+                        <maxFileSize>100MB</maxFileSize>
+                        <maxHistory>7</maxHistory>
+                        <totalSizeCap>1GB</totalSizeCap>
+                    </rollingPolicy>
+                    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                        <includeMdcKeyName>traceId</includeMdcKeyName>
+                        <includeMdcKeyName>spanId</includeMdcKeyName>
+                        <customFields>{"app":"${appName}"}</customFields>
+                    </encoder>
+                </appender>
+
+                <root level="${LOG_LEVEL_ROOT:-INFO}">
+                    <appender-ref ref="JSON_STDOUT"/>
+                    <appender-ref ref="JSON_FILE"/>
+                </root>
+            </then>
+            <else>
+                <root level="${LOG_LEVEL_ROOT:-INFO}">
+                    <appender-ref ref="JSON_STDOUT"/>
+                </root>
+            </else>
+        </if>
+    </springProfile>
+
+    <!-- Niveaux par defaut pour les logs de Spring (silencieux en prod) -->
+    <logger name="org.springframework" level="${LOG_LEVEL_SPRING:-INFO}"/>
+    <logger name="com.fittracker" level="${LOG_LEVEL_APP:-INFO}"/>
+</configuration>

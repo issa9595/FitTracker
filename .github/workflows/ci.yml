@@ -115,3 +115,111 @@ jobs:
           docker logs ft
           docker rm -f ft
           exit 1
+
+  compose-validate:
+    name: Docker Compose stack (app + db + redis + nginx)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Boot stack with prod profile (no dev override)
+        run: |
+          cp .env.example .env
+          {
+            echo "SPRING_PROFILES_ACTIVE=prod"
+            echo "POSTGRES_PASSWORD=ci-only-not-a-secret"
+            echo "SPRING_DATASOURCE_PASSWORD=ci-only-not-a-secret"
+          } >> .env
+          docker compose -f docker-compose.yml up -d --build
+
+      - name: Wait up to 180s for all services healthy
+        run: |
+          set +e
+          DEADLINE=$(( $(date +%s) + 180 ))
+          while [ $(date +%s) -lt $DEADLINE ]; do
+            all_healthy=true
+            for svc in app db redis nginx; do
+              status=$(docker inspect --format='{{.State.Health.Status}}' fittracker-$svc-1 2>/dev/null || echo "missing")
+              if [ "$status" != "healthy" ]; then
+                all_healthy=false
+                break
+              fi
+            done
+            if $all_healthy; then
+              echo "All services healthy."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::warning::Timeout reached, some services not healthy."
+
+      - name: List services and statuses
+        if: always()
+        run: docker compose ps
+
+      - name: Diagnose unhealthy services
+        if: always()
+        run: |
+          for svc in app db redis nginx; do
+            status=$(docker inspect --format='{{.State.Health.Status}}' fittracker-$svc-1 2>/dev/null || echo "missing")
+            echo "==== Service $svc: $status ===="
+            if [ "$status" != "healthy" ]; then
+              echo "---- Healthcheck JSON (exit codes + output) ----"
+              docker inspect fittracker-$svc-1 --format='{{json .State.Health}}' 2>/dev/null | jq '.Log[-5:]' 2>/dev/null || docker inspect fittracker-$svc-1 --format='{{json .State.Health}}' 2>/dev/null || true
+              echo "---- Container logs (last 100 lines) ----"
+              docker compose logs --tail=100 $svc 2>&1 || true
+              echo "---- Image inspect (basic) ----"
+              docker compose exec -T $svc sh -c "which wget; wget --help 2>&1 | head -3" || true
+            fi
+          done
+
+      - name: Fail if any service unhealthy
+        run: |
+          set -e
+          for svc in app db redis nginx; do
+            status=$(docker inspect --format='{{.State.Health.Status}}' fittracker-$svc-1 2>/dev/null || echo "missing")
+            if [ "$status" != "healthy" ]; then
+              echo "::error::Service $svc is $status"
+              exit 1
+            fi
+          done
+
+      - name: Hit /actuator/health via nginx
+        run: |
+          curl -fsS http://localhost/actuator/health
+          echo
+          curl -fsS http://localhost/actuator/health | grep -q '"status":"UP"'
+
+      - name: Verify security headers on nginx
+        run: |
+          headers=$(curl -fsSI http://localhost/actuator/health)
+          echo "$headers"
+          echo "$headers" | grep -i "x-content-type-options: nosniff"
+          echo "$headers" | grep -i "x-frame-options: DENY"
+          echo "$headers" | grep -i "referrer-policy"
+          echo "$headers" | grep -i "content-security-policy"
+
+      - name: Verify prod logs are valid JSON (12-Factor XI)
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+          docker compose logs app --no-log-prefix --no-color > /tmp/app.log
+          tail -40 /tmp/app.log
+          # On filtre les lignes commencant par { (le banner Spring Boot prefixe via Logback
+          # peut s'eparpiller sur plusieurs lignes), puis on tente de parser chacune en JSON.
+          json_count=$(grep -E '^\{' /tmp/app.log | wc -l | tr -d ' ')
+          echo "Lignes JSON detectees : $json_count"
+          if [ "$json_count" -lt 1 ]; then
+            echo "::error::Aucune ligne JSON dans les logs prod. La config Logback prod ne semble pas active."
+            exit 1
+          fi
+          # Verifie qu'au moins une ligne contient les champs attendus (message + level + @timestamp)
+          grep -E '^\{' /tmp/app.log | head -10 | jq -e 'select(.message != null and .level != null and ."@timestamp" != null) | .message' | head -1
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

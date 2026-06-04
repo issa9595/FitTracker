@@ -1,0 +1,46 @@
+# ============================================================
+# FitTracker - surcharges du profil 'prod'.
+# Aucun secret en clair ici : que des references aux env vars.
+# 12-Factor II : strict separation des configs entre environnements.
+# ============================================================
+
+spring:
+  datasource:
+    # En prod, on impose les vars d'env : pas de defaut.
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN:2}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+server:
+  forward-headers-strategy: framework
+  tomcat:
+    accesslog:
+      enabled: ${TOMCAT_ACCESSLOG_ENABLED:false}
+
+management:
+  endpoint:
+    health:
+      show-details: never
+  endpoints:
+    web:
+      exposure:
+        # Restriction stricte en prod : pas d'env, beans, mappings, etc.
+        include: ${ACTUATOR_EXPOSE:health,info}
+
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.fittracker: ${LOG_LEVEL_APP:INFO}
+    org.springframework: ${LOG_LEVEL_SPRING:WARN}
+    org.hibernate: WARN
+  file:
+    enabled: ${LOG_FILE_ENABLED:false}
+    path: ${LOG_FILE_PATH:/var/log/fittracker}
