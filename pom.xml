@@ -87,14 +87,6 @@
                         <trimTrailingWhitespace/>
                         <endWithNewline/>
                     </java>
-                    <pom>
-                        <includes>
-                            <include>pom.xml</include>
-                        </includes>
-                        <sortPom>
-                            <expandEmptyElements>false</expandEmptyElements>
-                        </sortPom>
-                    </pom>
                 </configuration>
                 <executions>
                     <execution>
