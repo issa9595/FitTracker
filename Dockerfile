@@ -34,10 +34,7 @@ LABEL org.opencontainers.image.description="Back-end Java de suivi d'entrainemen
 LABEL org.opencontainers.image.source="https://github.com/issa9595/FitTracker"
 LABEL org.opencontainers.image.licenses="MIT"
 
-# Outils minimaux pour le HEALTHCHECK (wget est present sur alpine)
-RUN apk add --no-cache curl tini
-
-# Utilisateur non-root
+# Utilisateur non-root (wget pour le HEALTHCHECK est deja fourni par busybox d'alpine)
 RUN addgroup -S fittracker && adduser -S fittracker -G fittracker
 WORKDIR /app
 
@@ -52,7 +49,7 @@ ENV JAVA_OPTS="" \
     SPRING_PROFILES_ACTIVE=prod \
     SERVER_PORT=8080
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -fsS http://localhost:${SERVER_PORT}/actuator/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD wget -qO- http://localhost:${SERVER_PORT}/actuator/health >/dev/null || exit 1
 
-ENTRYPOINT ["/sbin/tini", "--", "sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

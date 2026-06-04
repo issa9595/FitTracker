@@ -89,10 +89,13 @@ jobs:
         run: |
           docker image ls fittracker:ci-${{ github.sha }}
           SIZE_BYTES=$(docker image inspect fittracker:ci-${{ github.sha }} --format='{{.Size}}')
-          SIZE_MB=$((SIZE_BYTES / 1024 / 1024))
-          echo "Image size: ${SIZE_MB} MB"
+          # On utilise des MB decimaux (1 MB = 1 000 000 octets) pour rester aligne avec 'docker image ls'.
+          SIZE_MB=$((SIZE_BYTES / 1000 / 1000))
+          SIZE_MIB=$((SIZE_BYTES / 1024 / 1024))
+          echo "Image size: ${SIZE_MB} MB (${SIZE_MIB} MiB)"
           if [ "$SIZE_MB" -gt 250 ]; then
-            echo "::warning::Image FitTracker depasse 250 Mo (${SIZE_MB} Mo). Cible : <250 Mo."
+            echo "::error::Image FitTracker depasse 250 Mo (${SIZE_MB} Mo). Cible imposee par le brief : <250 Mo."
+            exit 1
           fi
 
       - name: Smoke test - run container & curl actuator/health
