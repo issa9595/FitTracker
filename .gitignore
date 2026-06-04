@@ -7,6 +7,9 @@
 hs_err_pid*
 replay_pid*
 
+# Exception : le Maven Wrapper doit etre versionne pour fonctionner sans mvn local
+!.mvn/wrapper/maven-wrapper.jar
+
 # ---- Maven ----
 target/
 pom.xml.tag
