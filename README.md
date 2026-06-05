@@ -4,7 +4,7 @@
 
 Back-end Java de suivi d'entraînement sportif — projet de fin d'année (rendu **16/06/2026**).
 
-> **État** : Phase 2 — Twelve-Factor, Docker Compose (app + db + redis + nginx), logs JSON structurés.
+> **État** : Phase 3 — API REST v1 (HATEOAS + RFC 7807 + pagination offset/cursor + filtrage DSL + versioning + Swagger).
 
 ## Stack
 
@@ -18,6 +18,7 @@ Back-end Java de suivi d'entraînement sportif — projet de fin d'année (rendu
 | Cache / pub-sub | Redis 7 alpine (compose) |
 | Reverse-proxy | Nginx 1.27 alpine (compose) |
 | Observabilité | Micrometer Tracing + Logback JSON (LogstashEncoder) |
+| API | Spring HATEOAS + springdoc-openapi (Swagger UI) |
 | CI | GitHub Actions |
 | Qualité | Spotless (google-java-format) + Checkstyle |
 
@@ -134,18 +135,29 @@ Cache Maven activé (`actions/setup-java` avec `cache: maven`) + cache GHA pour 
 - **Config** : `${VAR:default}` partout, jamais de secret en clair (`.env.example` uniquement).
 - **Logs prod** : JSON un-événement-par-ligne, traceId/spanId via Micrometer Tracing.
 
+## API
+
+- **Swagger UI** : http://localhost:8080/swagger-ui.html
+- **OpenAPI JSON** : http://localhost:8080/v3/api-docs
+- Tous les endpoints sous `/api/v1/...` avec HATEOAS (`_links` self / related / next-prev pour les collections).
+- Erreurs sérialisées en `application/problem+json` (RFC 7807) avec extensions `errors[]`, `traceId`.
+- Pagination **offset/limit** par défaut (`?page=0&size=20&sort=startedAt,desc`), **cursor** sur les flux à fort volume (`?cursor=...&size=20`).
+- Filtrage : `?filter=field:op:value,field2:op:value&filterOp=AND`. Opérateurs : `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `like`.
+- Versioning : préfixe URI (principal) + négociation `Accept: application/vnd.fittracker.v2+json` (secondaire), avec headers `Deprecation`/`Sunset`/`Link` sur les endpoints legacy.
+
 ## Documentation
 
 - [`docs/twelve-factor.md`](docs/twelve-factor.md) — Application des 12 facteurs
 - [`docs/security.md`](docs/security.md) — OWASP Top 10 & RGPD (vue d'ensemble)
+- [`docs/api-examples.md`](docs/api-examples.md) — 12 paires requête/réponse (auth, pagination, filtrage, erreurs RFC 7807, versioning)
 
 ## Roadmap
 
 | Phase | Contenu | État |
 |---|---|---|
 | 1 | Bootstrap projet, Docker, CI | ✅ |
-| 2 | Twelve-Factor, Docker Compose, Nginx, logs structurés | en cours |
-| 3 | API REST, HATEOAS, RFC 7807, pagination, versioning | à faire |
+| 2 | Twelve-Factor, Docker Compose, Nginx, logs structurés | ✅ |
+| 3 | API REST, HATEOAS, RFC 7807, pagination, versioning | en cours |
 | 4 | Persistence ORM, relations, CRUD, RGPD | à faire |
 | 5 | WebSockets temps réel, notifications | à faire |
 | 6 | Sécurité durcie : JWT, OAuth2, TLS | à faire |
