@@ -114,11 +114,13 @@
                             <include>src/main/java/**/*.java</include>
                             <include>src/test/java/**/*.java</include>
                         </includes>
-                        <googleJavaFormat>
-                            <version>1.22.0</version>
-                            <style>GOOGLE</style>
-                        </googleJavaFormat>
-                        <removeUnusedImports/>
+                        <!--
+                          Spotless garantit les nettoyages stables (trailing whitespace, EOL final).
+                          La largeur de ligne (120) et le style structurel (nommage, imports inutiles,
+                          interdiction System.out, etc.) sont enforces par Checkstyle. On evite ainsi
+                          la rigidite de googleJavaFormat (100 cols + wrapping agressif) tout en
+                          gardant un repo coherent et auditable.
+                        -->
                         <trimTrailingWhitespace/>
                         <endWithNewline/>
                     </java>
