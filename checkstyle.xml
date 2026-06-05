@@ -29,7 +29,12 @@
             <property name="format" value="^[a-z]+(\.[a-z][a-z0-9]*)*$"/>
         </module>
         <module name="TypeName"/>
-        <module name="MethodName"/>
+        <!-- Methodes en lowerCamelCase, avec underscores autorises pour matcher
+             la convention 'should_<expected>_when_<context>()' demandee pour les
+             tests par le brief. -->
+        <module name="MethodName">
+            <property name="format" value="^[a-z][a-zA-Z0-9_]*$"/>
+        </module>
         <module name="ConstantName"/>
         <module name="LocalVariableName"/>
         <module name="MemberName"/>

@@ -32,6 +32,7 @@
         <checkstyle.version>10.18.1</checkstyle.version>
 
         <logstash.logback.encoder.version>8.0</logstash.logback.encoder.version>
+        <springdoc.version>2.6.0</springdoc.version>
     </properties>
 
     <dependencies>
@@ -46,6 +47,19 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- HATEOAS : RepresentationModel + WebMvcLinkBuilder pour les _links -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-hateoas</artifactId>
+        </dependency>
+
+        <!-- OpenAPI / Swagger UI auto-generes -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
         </dependency>
 
         <!-- Observability: traceId/spanId in MDC for log correlation -->
@@ -100,11 +114,13 @@
                             <include>src/main/java/**/*.java</include>
                             <include>src/test/java/**/*.java</include>
                         </includes>
-                        <googleJavaFormat>
-                            <version>1.22.0</version>
-                            <style>GOOGLE</style>
-                        </googleJavaFormat>
-                        <removeUnusedImports/>
+                        <!--
+                          Spotless garantit les nettoyages stables (trailing whitespace, EOL final).
+                          La largeur de ligne (120) et le style structurel (nommage, imports inutiles,
+                          interdiction System.out, etc.) sont enforces par Checkstyle. On evite ainsi
+                          la rigidite de googleJavaFormat (100 cols + wrapping agressif) tout en
+                          gardant un repo coherent et auditable.
+                        -->
                         <trimTrailingWhitespace/>
                         <endWithNewline/>
                     </java>
