@@ -63,7 +63,14 @@ public class NotificationService {
     return n;
   }
 
-  /** Pousse des notifications de demo (seed dev/test). Sera remplace en phase 5 par l'evenementiel. */
+  /** Cree et persiste une notification. Utilise par l'evenementiel temps reel (Phase 5). */
+  @Transactional
+  public Notification create(UUID userId, NotificationType type, Map<String, Object> payload) {
+    return repository.save(
+        new Notification(UUID.randomUUID(), userId, type, payload, OffsetDateTime.now()));
+  }
+
+  /** Pousse des notifications de demo (seed dev/test). */
   @Transactional
   public void seedDemo(UUID userId) {
     if (!repository.findByUserId(userId).isEmpty()) {

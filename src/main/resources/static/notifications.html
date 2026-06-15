@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FitTracker — Notifications temps réel</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.3rem; }
+    .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+    input, button { padding: .5rem .6rem; font-size: 1rem; }
+    #status { font-size: .85rem; padding: .2rem .5rem; border-radius: 4px; background: #eee; }
+    #status.ok { background: #d4f7d4; }
+    #status.ko { background: #f7d4d4; }
+    ul { list-style: none; padding: 0; }
+    li { border: 1px solid #ddd; border-radius: 6px; padding: .6rem .8rem; margin: .4rem 0; }
+    li.unread { border-left: 4px solid #2d7; background: #f6fff6; }
+    .type { font-weight: 600; }
+    .meta { color: #777; font-size: .8rem; }
+    button.link { background: none; border: none; color: #06c; cursor: pointer; padding: 0; }
+  </style>
+</head>
+<body>
+  <h1>FitTracker — Notifications temps réel</h1>
+
+  <section id="login">
+    <p>Connecte-toi pour ouvrir la connexion WebSocket (le JWT est validé au CONNECT).</p>
+    <div class="row">
+      <input id="email" type="email" placeholder="email" value="" />
+      <input id="password" type="password" placeholder="mot de passe" value="ChangeMe123!" />
+      <button id="loginBtn">Se connecter</button>
+    </div>
+  </section>
+
+  <section id="app" style="display:none">
+    <div class="row">
+      <span id="status">déconnecté</span>
+      <span class="meta" id="me"></span>
+      <button id="logoutBtn" class="link">déconnexion</button>
+    </div>
+    <h2 style="font-size:1rem">Notifications</h2>
+    <ul id="list"></ul>
+  </section>
+
+  <!-- Libs STOMP + SockJS (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
+  <script>
+    let token = null, userId = null, client = null;
+
+    const $ = (id) => document.getElementById(id);
+    const setStatus = (txt, cls) => { const s = $('status'); s.textContent = txt; s.className = cls || ''; };
+
+    async function login() {
+      const email = $('email').value.trim();
+      const password = $('password').value;
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      if (!res.ok) { alert('Login échoué (' + res.status + ')'); return; }
+      const data = await res.json();
+      token = data.accessToken; userId = data.userId;
+      $('login').style.display = 'none';
+      $('app').style.display = 'block';
+      $('me').textContent = 'connecté : ' + data.email;
+      await loadHistory();
+      connectWs();
+    }
+
+    async function loadHistory() {
+      const res = await fetch('/api/v1/notifications', { headers: { Authorization: 'Bearer ' + token } });
+      if (!res.ok) return;
+      const page = await res.json();
+      $('list').innerHTML = '';
+      (page.content || []).forEach(render);
+    }
+
+    function connectWs() {
+      client = new StompJs.Client({
+        webSocketFactory: () => new SockJS('/ws'),
+        connectHeaders: { Authorization: 'Bearer ' + token },
+        reconnectDelay: 5000,            // reconnexion auto (backoff simple)
+        heartbeatIncoming: 10000,
+        heartbeatOutgoing: 10000,
+        onConnect: () => {
+          setStatus('connecté (temps réel)', 'ok');
+          client.subscribe('/topic/notifications/' + userId, (msg) => render(JSON.parse(msg.body), true));
+        },
+        onWebSocketClose: () => setStatus('déconnecté — reconnexion…', 'ko'),
+        onStompError: (f) => setStatus('erreur: ' + (f.headers['message'] || ''), 'ko')
+      });
+      client.activate();
+    }
+
+    function render(n, prepend) {
+      const li = document.createElement('li');
+      if (!n.readAt) li.classList.add('unread');
+      const payload = n.payload ? JSON.stringify(n.payload) : '';
+      li.innerHTML =
+        '<div class="type">' + n.type + '</div>' +
+        '<div class="meta">' + (n.createdAt || '') + ' ' + payload + '</div>';
+      if (!n.readAt) {
+        const btn = document.createElement('button');
+        btn.className = 'link'; btn.textContent = 'marquer comme lu';
+        btn.onclick = () => markRead(n.id, li, btn);
+        li.appendChild(btn);
+      }
+      const list = $('list');
+      prepend ? list.prepend(li) : list.appendChild(li);
+    }
+
+    async function markRead(id, li, btn) {
+      const res = await fetch('/api/v1/notifications/' + id + '/read', {
+        method: 'PATCH', headers: { Authorization: 'Bearer ' + token }
+      });
+      if (res.ok) { li.classList.remove('unread'); btn.remove(); }
+    }
+
+    function logout() {
+      if (client) client.deactivate();
+      token = userId = null;
+      $('app').style.display = 'none';
+      $('login').style.display = 'block';
+      setStatus('déconnecté');
+    }
+
+    $('loginBtn').onclick = login;
+    $('logoutBtn').onclick = logout;
+  </script>
+</body>
+</html>

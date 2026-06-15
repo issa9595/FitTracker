@@ -4,7 +4,7 @@
 
 Back-end Java de suivi d'entraînement sportif — projet de fin d'année (rendu **16/06/2026**).
 
-> **État** : Phase 4 — Persistence JPA/Hibernate sur PostgreSQL (Flyway, relations 1-1/1-N/M-N, soft-delete, audit, export & anonymisation RGPD).
+> **État** : Phase 5 — Notifications temps réel via WebSocket STOMP authentifié JWT (broker en mémoire, événements métier, UI de démo).
 
 ## Stack
 
@@ -152,6 +152,25 @@ Cache Maven activé (`actions/setup-java` avec `cache: maven`) + cache GHA pour 
 - [`docs/security.md`](docs/security.md) — OWASP Top 10 & RGPD (vue d'ensemble)
 - [`docs/api-examples.md`](docs/api-examples.md) — 12 paires requête/réponse (auth, pagination, filtrage, erreurs RFC 7807, versioning)
 - [`docs/architecture.md`](docs/architecture.md) — schéma containers + ERD Mermaid + choix de persistance (phase 4)
+- [`docs/websockets.md`](docs/websockets.md) — STOMP, auth JWT au CONNECT, événements, reconnexion, démo (phase 5)
+
+## Notifications temps réel (phase 5)
+
+WebSocket **STOMP** sur `/ws` (proxifié par Nginx), **authentifié par JWT au CONNECT**
+(`JwtChannelInterceptor`), broker `SimpleBroker` en mémoire, heartbeats 10s/10s. Les services
+publient des événements métier (`SessionCompletedEvent`, `NewPrEvent`) ; un `NotificationListener`
+persiste la notification **et** la pousse sur `/topic/notifications/{userId}` via
+`SimpMessagingTemplate`.
+
+Démo : page statique [`/notifications.html`](src/main/resources/static/notifications.html) (login →
+JWT → connexion STOMP → liste temps réel + « marquer lu »). Scénario complet et mise à l'échelle
+Redis/RabbitMQ détaillés dans [`docs/websockets.md`](docs/websockets.md).
+
+```bash
+docker compose up -d
+# ouvrir http://localhost/notifications.html dans deux navigateurs (user A et user B)
+# A suit B ; B crée une séance ; A reçoit la notif en temps réel
+```
 
 ## Persistence (phase 4)
 
@@ -184,8 +203,8 @@ docker compose up -d db
 | 1 | Bootstrap projet, Docker, CI | ✅ |
 | 2 | Twelve-Factor, Docker Compose, Nginx, logs structurés | ✅ |
 | 3 | API REST, HATEOAS, RFC 7807, pagination, versioning | ✅ |
-| 4 | Persistence ORM, relations, CRUD, RGPD | en cours |
-| 5 | WebSockets temps réel, notifications | à faire |
+| 4 | Persistence ORM, relations, CRUD, RGPD | ✅ |
+| 5 | WebSockets temps réel, notifications | en cours |
 | 6 | Sécurité durcie : JWT, OAuth2, TLS | à faire |
 | 7 | Tests complets, qualité, CI/CD enrichie | à faire |
 

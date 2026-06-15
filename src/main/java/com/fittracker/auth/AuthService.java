@@ -13,19 +13,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Implementation stub pour la Phase 3 : valide les inputs et persiste un User, mais renvoie un faux
- * access token. La cryptographie reelle (BCrypt + JWT RS256) arrivera en Phase 6.
+ * Phase 5 : emet de vrais access tokens JWT (HS256) via {@link JwtService}. La verification du mot
+ * de passe (BCrypt) et les refresh tokens revocables arriveront en Phase 6.
  */
 @Service
 public class AuthService {
 
-  private static final String STUB_TOKEN = "stub-token-phase-6";
-  private static final long STUB_EXPIRES_IN_SECONDS = 900L;
-
   private final UserRepository userRepository;
+  private final JwtService jwtService;
 
-  public AuthService(UserRepository userRepository) {
+  public AuthService(UserRepository userRepository, JwtService jwtService) {
     this.userRepository = userRepository;
+    this.jwtService = jwtService;
   }
 
   @Transactional
@@ -41,8 +40,7 @@ public class AuthService {
             req.displayName(),
             OffsetDateTime.now());
     userRepository.save(user);
-    return new AuthResponse(
-        user.getId(), user.getEmail(), STUB_TOKEN, "bearer", STUB_EXPIRES_IN_SECONDS);
+    return toResponse(user);
   }
 
   @Transactional(readOnly = true)
@@ -51,7 +49,12 @@ public class AuthService {
         userRepository
             .findByEmailIgnoreCase(req.email())
             .orElseThrow(() -> new NotFoundException("User", req.email()));
+    return toResponse(user);
+  }
+
+  private AuthResponse toResponse(User user) {
+    String token = jwtService.generateAccessToken(user.getId(), user.getEmail());
     return new AuthResponse(
-        user.getId(), user.getEmail(), STUB_TOKEN, "bearer", STUB_EXPIRES_IN_SECONDS);
+        user.getId(), user.getEmail(), token, "bearer", jwtService.getAccessTtlSeconds());
   }
 }

@@ -29,7 +29,7 @@
 | 2 | Twelve-Factor, Compose, Nginx, logs JSON | ✅ Mergée | PR #2 |
 | 3 | REST, HATEOAS, RFC 7807, pagination, versioning | ✅ Mergée | PR #3 (`06eac24`) |
 | 4 | Persistence ORM, relations, CRUD, RGPD | 🔄 Code écrit, à vérifier (`mvn verify`) | `feature/phase-4-persistence` |
-| 5 | WebSockets temps réel, notifications | ⏭️ À faire | — |
+| 5 | WebSockets temps réel, notifications | 🔄 Code écrit, à vérifier (`mvn verify`) | `feature/phase-5-websockets` |
 | 6 | Sécurité durcie : JWT, OAuth2, TLS | ⏭️ À faire | — |
 | 7 | Tests complets, qualité, CI/CD enrichie | ⏭️ À faire | — |
 

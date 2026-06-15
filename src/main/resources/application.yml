@@ -94,6 +94,8 @@ fittracker:
   security:
     jwt:
       issuer: ${JWT_ISSUER:fittracker}
+      # Secret HS256 (>= 32 octets). Defaut dev uniquement ; surcharger via JWT_SECRET en prod.
+      secret: ${JWT_SECRET:dev-fittracker-hs256-secret-change-me-please-0123456789abcdef}
       access-token-ttl-seconds: ${JWT_ACCESS_TOKEN_TTL:900}
       refresh-token-ttl-seconds: ${JWT_REFRESH_TOKEN_TTL:604800}
   logging:
