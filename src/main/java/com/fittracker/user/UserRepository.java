@@ -1,26 +1,12 @@
 package com.fittracker.user;
 
-import com.fittracker.common.repository.InMemoryRepository;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-@Repository
-public class UserRepository extends InMemoryRepository<User, UUID> {
+public interface UserRepository extends JpaRepository<User, UUID> {
 
-  @Override
-  protected UUID idOf(User entity) {
-    return entity.getId();
-  }
+  Optional<User> findByEmailIgnoreCase(String email);
 
-  public Optional<User> findByEmail(String email) {
-    if (email == null) {
-      return Optional.empty();
-    }
-    return stream().filter(u -> email.equalsIgnoreCase(u.getEmail())).findFirst();
-  }
-
-  public boolean existsByEmail(String email) {
-    return findByEmail(email).isPresent();
-  }
+  boolean existsByEmailIgnoreCase(String email);
 }

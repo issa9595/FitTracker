@@ -65,10 +65,9 @@ public class ExerciseController {
     Predicate<Exercise> predicate = spec.toPredicate(this::predicateFor);
     Comparator<Exercise> comparator = comparatorFor(SortSpec.parse(sort, "name"));
 
-    long total =
-        repository.all().stream().filter(predicate).count();
+    long total = repository.findAll().stream().filter(predicate).count();
     List<ExerciseResponse> items =
-        repository.all().stream()
+        repository.findAll().stream()
             .filter(predicate)
             .sorted(comparator)
             .skip(pageRequest.offset())

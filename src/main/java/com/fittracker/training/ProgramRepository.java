@@ -1,18 +1,10 @@
 package com.fittracker.training;
 
-import com.fittracker.common.repository.InMemoryRepository;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-@Repository
-public class ProgramRepository extends InMemoryRepository<Program, UUID> {
-  @Override
-  protected UUID idOf(Program entity) {
-    return entity.getId();
-  }
+public interface ProgramRepository extends JpaRepository<Program, UUID> {
 
-  public List<Program> findByUserId(UUID userId) {
-    return stream().filter(p -> userId.equals(p.getUserId())).toList();
-  }
+  List<Program> findByUserId(UUID userId);
 }

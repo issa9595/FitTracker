@@ -4,36 +4,57 @@ import com.fittracker.common.security.CurrentUserProvider;
 import jakarta.annotation.PostConstruct;
 import java.time.OffsetDateTime;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Seed minimal pour la Phase 3 : cree le user "test" referenced par CurrentUserProvider afin que
- * les endpoints /users/me puissent fonctionner sans qu'il faille passer par /auth/register.
- * Cette classe sera retiree en Phase 6 quand l'auth reelle sera en place.
+ * Seed dev/test : cree le user "test" reference par CurrentUserProvider afin que les endpoints
+ * /users/me fonctionnent sans passer par /auth/register. Desactive en prod (profil exclu). Sera
+ * retire en Phase 6 quand l'auth reelle sera en place.
  */
 @Component
+@org.springframework.context.annotation.Profile({"dev", "test"})
 public class UserSeed {
 
   private final UserRepository userRepository;
   private final ProfileRepository profileRepository;
+  private final TransactionTemplate transactionTemplate;
 
-  public UserSeed(UserRepository userRepository, ProfileRepository profileRepository) {
+  public UserSeed(
+      UserRepository userRepository,
+      ProfileRepository profileRepository,
+      PlatformTransactionManager transactionManager) {
     this.userRepository = userRepository;
     this.profileRepository = profileRepository;
+    this.transactionTemplate = new TransactionTemplate(transactionManager);
   }
 
+  /**
+   * {@code @Transactional} ne s'applique pas sur un {@code @PostConstruct} (pas de proxy sur
+   * l'auto-invocation de cycle de vie). On ouvre donc une transaction programmatique pour que les
+   * deux insertions partagent la meme session : le user n'est insere qu'une fois et le profil
+   * {@code @MapsId} lit l'instance geree.
+   */
   @PostConstruct
   public void seed() {
+    transactionTemplate.executeWithoutResult(status -> doSeed());
+  }
+
+  private void doSeed() {
     if (userRepository.existsById(CurrentUserProvider.TEST_USER_ID)) {
       return;
     }
     User test =
-        new User(
-            CurrentUserProvider.TEST_USER_ID,
-            "test@fittracker.dev",
-            "$2a$12$disabled-phase-6-real-hash",
-            "Test User",
-            OffsetDateTime.now());
-    userRepository.save(test);
-    profileRepository.save(new Profile(test.getId(), 178, 75.0, 72.0, "User de demo (Phase 3)"));
+        userRepository.save(
+            new User(
+                CurrentUserProvider.TEST_USER_ID,
+                "test@fittracker.dev",
+                "$2a$12$disabled-phase-6-real-hash",
+                "Test User",
+                OffsetDateTime.now()));
+
+    Profile profile = new Profile(test.getId(), 178, 75.0, 72.0, "User de demo (Phase 3)");
+    profile.setUser(test); // @MapsId : association requise (instance geree retournee par save)
+    profileRepository.save(profile);
   }
 }

@@ -1,10 +1,10 @@
 package com.fittracker;
 
+import com.fittracker.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class FitTrackerApplicationTests {
+/** Smoke test : le contexte complet demarre (JPA + Flyway + Testcontainers Postgres). */
+class FitTrackerApplicationTests extends AbstractIntegrationTest {
 
   @Test
   void contextLoads() {}

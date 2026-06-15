@@ -4,17 +4,30 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 /**
- * Stub d'identite de l'utilisateur courant pour la Phase 3. En Phase 6, on lira l'identifiant
- * depuis le SecurityContext alimente par le JWT. Tant qu'on n'a pas l'auth complete, on renvoie
- * un user "test" fixe pour permettre aux endpoints /users/me et autorisations triviales de
- * fonctionner.
+ * Fournit l'identifiant de l'utilisateur courant.
+ *
+ * <p>Phase 5 : si une requete porte un JWT valide, {@link com.fittracker.auth.JwtAuthFilter} place
+ * l'identifiant correspondant dans un contexte par thread. Sinon, on retombe sur un utilisateur de
+ * test fixe pour conserver le comportement des phases precedentes (et des tests). En Phase 6, la
+ * source unique deviendra le SecurityContext de Spring Security.
  */
 @Component
 public class CurrentUserProvider {
 
   public static final UUID TEST_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
+  private static final ThreadLocal<UUID> CURRENT = new ThreadLocal<>();
+
+  public void set(UUID userId) {
+    CURRENT.set(userId);
+  }
+
+  public void clear() {
+    CURRENT.remove();
+  }
+
   public UUID currentUserId() {
-    return TEST_USER_ID;
+    UUID userId = CURRENT.get();
+    return userId != null ? userId : TEST_USER_ID;
   }
 }

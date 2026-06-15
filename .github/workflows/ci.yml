@@ -52,8 +52,10 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: maven
 
-      - name: Maven verify (skip integration tests)
-        run: ./mvnw -B verify -DskipITs
+      # Docker est disponible sur ubuntu-latest : les tests (unitaires + integration
+      # Testcontainers via jdbc:tc:postgresql) s'executent tous ici.
+      - name: Maven verify (unit + integration tests Testcontainers)
+        run: ./mvnw -B verify
 
       - name: Upload build artefact (jar)
         if: success()
@@ -100,21 +102,40 @@ jobs:
 
       - name: Smoke test - run container & curl actuator/health
         run: |
-          docker run -d --name ft -p 8080:8080 fittracker:ci-${{ github.sha }}
+          # Depuis la Phase 4, l'app exige une datasource (JPA + Flyway). On fournit donc
+          # un Postgres jetable sur un reseau dedie ; l'image tourne en profil prod
+          # (defaut du Dockerfile) avec les vars d'env imposees par application-prod.yml.
+          docker network create ftnet
+          docker run -d --name ft-db --network ftnet \
+            -e POSTGRES_DB=fittracker \
+            -e POSTGRES_USER=fittracker \
+            -e POSTGRES_PASSWORD=ci-only-not-a-secret \
+            postgres:16-alpine
+          echo "Attente que Postgres soit pret..."
+          for i in $(seq 1 30); do
+            docker exec ft-db pg_isready -U fittracker -d fittracker >/dev/null 2>&1 && break
+            sleep 2
+          done
+          docker run -d --name ft --network ftnet -p 8080:8080 \
+            -e SPRING_DATASOURCE_URL=jdbc:postgresql://ft-db:5432/fittracker \
+            -e SPRING_DATASOURCE_USERNAME=fittracker \
+            -e SPRING_DATASOURCE_PASSWORD=ci-only-not-a-secret \
+            fittracker:ci-${{ github.sha }}
+          ok=0
           for i in $(seq 1 30); do
             if curl -fsS http://localhost:8080/actuator/health >/dev/null 2>&1; then
               echo "Container repond sur /actuator/health"
               curl -s http://localhost:8080/actuator/health
-              docker logs ft | tail -20
-              docker rm -f ft
-              exit 0
+              ok=1
+              break
             fi
             sleep 2
           done
-          echo "Container n'a pas repondu apres 60s"
-          docker logs ft
-          docker rm -f ft
-          exit 1
+          [ "$ok" -eq 1 ] || echo "Container n'a pas repondu apres 60s"
+          docker logs ft | tail -30
+          docker rm -f ft ft-db >/dev/null 2>&1 || true
+          docker network rm ftnet >/dev/null 2>&1 || true
+          [ "$ok" -eq 1 ] || exit 1
 
   compose-validate:
     name: Docker Compose stack (app + db + redis + nginx)

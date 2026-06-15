@@ -1,15 +1,45 @@
 package com.fittracker.training;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.MapsId;
+import jakarta.persistence.Table;
 import java.util.UUID;
 
-public final class SessionExercise {
-  private UUID sessionId;
-  private UUID exerciseId;
-  private int position;
+/**
+ * Entite d'association M-N entre {@link TrainingSession} et {@link Exercise} portant des attributs
+ * (sets, reps, charge, distance, temps). Cle composite via {@link SessionExerciseId}.
+ */
+@Entity
+@Table(name = "session_exercises")
+public class SessionExercise {
+
+  @EmbeddedId private SessionExerciseId id;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @MapsId("sessionId")
+  @JoinColumn(name = "session_id")
+  private TrainingSession session;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @MapsId("exerciseId")
+  @JoinColumn(name = "exercise_id")
+  private Exercise exercise;
+
   private Integer sets;
   private Integer reps;
+
+  @Column(name = "weight_kg")
   private Double weightKg;
+
+  @Column(name = "distance_m")
   private Integer distanceM;
+
+  @Column(name = "time_seconds")
   private Integer timeSeconds;
 
   public SessionExercise() {}
@@ -23,9 +53,7 @@ public final class SessionExercise {
       Double weightKg,
       Integer distanceM,
       Integer timeSeconds) {
-    this.sessionId = sessionId;
-    this.exerciseId = exerciseId;
-    this.position = position;
+    this.id = new SessionExerciseId(sessionId, exerciseId, position);
     this.sets = sets;
     this.reps = reps;
     this.weightKg = weightKg;
@@ -33,16 +61,20 @@ public final class SessionExercise {
     this.timeSeconds = timeSeconds;
   }
 
+  public SessionExerciseId getId() {
+    return id;
+  }
+
   public UUID getSessionId() {
-    return sessionId;
+    return id != null ? id.getSessionId() : null;
   }
 
   public UUID getExerciseId() {
-    return exerciseId;
+    return id != null ? id.getExerciseId() : null;
   }
 
   public int getPosition() {
-    return position;
+    return id != null ? id.getPosition() : 0;
   }
 
   public Integer getSets() {
@@ -63,5 +95,21 @@ public final class SessionExercise {
 
   public Integer getTimeSeconds() {
     return timeSeconds;
+  }
+
+  public TrainingSession getSession() {
+    return session;
+  }
+
+  public void setSession(TrainingSession session) {
+    this.session = session;
+  }
+
+  public Exercise getExercise() {
+    return exercise;
+  }
+
+  public void setExercise(Exercise exercise) {
+    this.exercise = exercise;
   }
 }

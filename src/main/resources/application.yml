@@ -19,6 +19,26 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:fittracker}
     password: ${SPRING_DATASOURCE_PASSWORD:fittracker}
 
+  # ---- JPA / Hibernate (Phase 4) ----
+  # Flyway gere le schema : ddl-auto reste a 'validate' (jamais 'update', cf. brief 6.6).
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false           # anti-pattern : pas de session ouverte cote MVC
+    properties:
+      hibernate:
+        format_sql: ${HIBERNATE_FORMAT_SQL:false}
+        jdbc:
+          time_zone: UTC
+    show-sql: ${HIBERNATE_SHOW_SQL:false}
+
+  # ---- Flyway (migrations versionnees) ----
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+
   # ---- Redis ----
   # Active a partir de la phase 5. Placeholders documentes.
   data:
@@ -74,6 +94,8 @@ fittracker:
   security:
     jwt:
       issuer: ${JWT_ISSUER:fittracker}
+      # Secret HS256 (>= 32 octets). Defaut dev uniquement ; surcharger via JWT_SECRET en prod.
+      secret: ${JWT_SECRET:dev-fittracker-hs256-secret-change-me-please-0123456789abcdef}
       access-token-ttl-seconds: ${JWT_ACCESS_TOKEN_TTL:900}
       refresh-token-ttl-seconds: ${JWT_REFRESH_TOKEN_TTL:604800}
   logging:
