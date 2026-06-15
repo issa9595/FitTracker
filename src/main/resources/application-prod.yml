@@ -25,6 +25,13 @@ server:
     accesslog:
       enabled: ${TOMCAT_ACCESSLOG_ENABLED:false}
 
+# OpenAPI desactivee par defaut en prod : on n'expose pas la cartographie de l'API publiquement.
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:false}
+
 management:
   endpoint:
     health:

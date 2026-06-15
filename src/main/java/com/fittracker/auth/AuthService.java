@@ -4,27 +4,31 @@ import com.fittracker.auth.dto.AuthResponse;
 import com.fittracker.auth.dto.LoginRequest;
 import com.fittracker.auth.dto.RegisterRequest;
 import com.fittracker.common.error.ConflictException;
-import com.fittracker.common.error.NotFoundException;
+import com.fittracker.common.error.UnauthorizedException;
 import com.fittracker.user.User;
 import com.fittracker.user.UserRepository;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Phase 5 : emet de vrais access tokens JWT (HS256) via {@link JwtService}. La verification du mot
- * de passe (BCrypt) et les refresh tokens revocables arriveront en Phase 6.
+ * Phase 6 : inscription avec hachage BCrypt (cost 12) et login verifiant le mot de passe. Emet de
+ * vrais access tokens JWT (HS256) via {@link JwtService}, valides ensuite par le Resource Server.
  */
 @Service
 public class AuthService {
 
   private final UserRepository userRepository;
   private final JwtService jwtService;
+  private final PasswordEncoder passwordEncoder;
 
-  public AuthService(UserRepository userRepository, JwtService jwtService) {
+  public AuthService(
+      UserRepository userRepository, JwtService jwtService, PasswordEncoder passwordEncoder) {
     this.userRepository = userRepository;
     this.jwtService = jwtService;
+    this.passwordEncoder = passwordEncoder;
   }
 
   @Transactional
@@ -36,7 +40,7 @@ public class AuthService {
         new User(
             UUID.randomUUID(),
             req.email(),
-            "stub-hash-phase-6",
+            passwordEncoder.encode(req.password()),
             req.displayName(),
             OffsetDateTime.now());
     userRepository.save(user);
@@ -45,10 +49,15 @@ public class AuthService {
 
   @Transactional(readOnly = true)
   public AuthResponse login(LoginRequest req) {
+    // Message generique (pas de distinction "email inconnu" / "mauvais mot de passe") pour eviter
+    // l'enumeration de comptes (OWASP A07).
     User user =
         userRepository
             .findByEmailIgnoreCase(req.email())
-            .orElseThrow(() -> new NotFoundException("User", req.email()));
+            .orElseThrow(() -> new UnauthorizedException("Identifiants invalides"));
+    if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {
+      throw new UnauthorizedException("Identifiants invalides");
+    }
     return toResponse(user);
   }
 

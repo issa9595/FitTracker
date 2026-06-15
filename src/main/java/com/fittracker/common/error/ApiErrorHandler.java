@@ -55,6 +55,12 @@ public class ApiErrorHandler {
     return respond(build(HttpStatus.FORBIDDEN, "Acces refuse", ex.getMessage(), req, "forbidden"));
   }
 
+  @ExceptionHandler(UnauthorizedException.class)
+  public ResponseEntity<ProblemDetail> handleUnauthorized(
+      UnauthorizedException ex, HttpServletRequest req) {
+    return respond(build(HttpStatus.UNAUTHORIZED, "Non authentifie", ex.getMessage(), req, "unauthorized"));
+  }
+
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<ProblemDetail> handleValidation(
       MethodArgumentNotValidException ex, HttpServletRequest req) {

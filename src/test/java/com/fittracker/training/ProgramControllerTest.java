@@ -5,12 +5,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fittracker.auth.JwtService;
+import com.fittracker.support.TestAuth;
 import com.fittracker.training.dto.ProgramCreateRequest;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -22,12 +25,16 @@ class ProgramControllerTest {
 
   @Autowired private WebApplicationContext webApplicationContext;
   @Autowired private ObjectMapper objectMapper;
+  @Autowired private JwtService jwtService;
 
   private MockMvc mockMvc;
 
   @org.junit.jupiter.api.BeforeEach
   void setup() {
-    mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+    mockMvc =
+        MockMvcBuilders.webAppContextSetup(webApplicationContext)
+            .apply(SecurityMockMvcConfigurers.springSecurity())
+            .build();
   }
 
   @Test
@@ -42,6 +49,7 @@ class ProgramControllerTest {
     mockMvc
         .perform(
             post("/api/v1/programs")
+                .with(TestAuth.bearerTestUser(jwtService))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)))
         .andExpect(status().isCreated())
@@ -57,6 +65,7 @@ class ProgramControllerTest {
     mockMvc
         .perform(
             post("/api/v1/programs")
+                .with(TestAuth.bearerTestUser(jwtService))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)))
         .andExpect(status().isUnprocessableEntity())

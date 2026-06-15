@@ -36,7 +36,13 @@ public class JwtService {
     this.accessTtlSeconds = accessTtlSeconds;
   }
 
-  /** Genere un access token signe HS256 portant l'identifiant et l'email de l'utilisateur. */
+  /**
+   * Genere un access token signe HS256 portant l'identifiant et l'email de l'utilisateur.
+   *
+   * <p>L'algorithme est explicitement epingle a HS256 : sans cela, jjwt deduirait l'algorithme de la
+   * longueur de la cle (un secret &ge; 48 octets donnerait HS384/HS512), ce qui ferait diverger la
+   * signature du {@code JwtDecoder} Nimbus du Resource Server, lui fige en {@code MacAlgorithm.HS256}.
+   */
   public String generateAccessToken(UUID userId, String email) {
     Instant now = Instant.now();
     return Jwts.builder()
@@ -45,7 +51,7 @@ public class JwtService {
         .claim("email", email)
         .issuedAt(Date.from(now))
         .expiration(Date.from(now.plusSeconds(accessTtlSeconds)))
-        .signWith(key)
+        .signWith(key, Jwts.SIG.HS256)
         .compact();
   }
 
