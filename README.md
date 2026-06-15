@@ -4,7 +4,7 @@
 
 Back-end Java de suivi d'entraînement sportif — projet de fin d'année (rendu **16/06/2026**).
 
-> **État** : Phase 3 — API REST v1 (HATEOAS + RFC 7807 + pagination offset/cursor + filtrage DSL + versioning + Swagger).
+> **État** : Phase 4 — Persistence JPA/Hibernate sur PostgreSQL (Flyway, relations 1-1/1-N/M-N, soft-delete, audit, export & anonymisation RGPD).
 
 ## Stack
 
@@ -122,8 +122,9 @@ Pipeline GitHub Actions déclenché sur `push` vers `main` et sur chaque pull re
 | Job | Contenu |
 |---|---|
 | `lint` | `./mvnw spotless:check` + `./mvnw checkstyle:check` |
-| `build` | `./mvnw verify -DskipITs` (Java 21), artefact `fittracker.jar` |
+| `build` | `./mvnw verify` (Java 21) — tests unitaires + intégration Testcontainers Postgres, artefact `fittracker.jar` |
 | `docker-build` | Build image Docker (sans push), smoke test `curl /actuator/health`, fail si > 250 Mo |
+| `compose-validate` | Démarre la stack complète (app+db+redis+nginx) et valide santé, headers, logs JSON |
 
 Cache Maven activé (`actions/setup-java` avec `cache: maven`) + cache GHA pour les couches Docker.
 
@@ -150,6 +151,31 @@ Cache Maven activé (`actions/setup-java` avec `cache: maven`) + cache GHA pour 
 - [`docs/twelve-factor.md`](docs/twelve-factor.md) — Application des 12 facteurs
 - [`docs/security.md`](docs/security.md) — OWASP Top 10 & RGPD (vue d'ensemble)
 - [`docs/api-examples.md`](docs/api-examples.md) — 12 paires requête/réponse (auth, pagination, filtrage, erreurs RFC 7807, versioning)
+- [`docs/architecture.md`](docs/architecture.md) — schéma containers + ERD Mermaid + choix de persistance (phase 4)
+
+## Persistence (phase 4)
+
+Le schéma PostgreSQL est géré par **Flyway** (`src/main/resources/db/migration/`) :
+
+| Migration | Contenu |
+|---|---|
+| `V1__init.sql` | 8 tables + contraintes FK + index sur les colonnes filtrées/triées |
+| `V2__seed_exercises.sql` | référentiel de 12 exercices (UUID déterministes) |
+| `V3__seed_deleted_user.sql` | user sentinelle pour l'anonymisation RGPD |
+
+Hibernate tourne en `ddl-auto=validate` (Flyway gère le schéma, jamais `update`). Les 4 types de
+relations (1-1 `User`/`Profile` via `@MapsId`, 1-N `User`/`TrainingSession`, M-N avec attributs
+`Session`/`Exercise`, M-N self-référençant `Follow`) sont démontrés par des tests d'intégration
+Testcontainers (`src/test/java/com/fittracker/persistence/*IT.java`).
+
+Endpoints RGPD : `GET /api/v1/users/me/export` (portabilité) et `DELETE /api/v1/users/me`
+(anonymisation des sessions + purge follows/profil/notifications).
+
+```bash
+# Lancer la base seule puis l'app (migrations appliquées au démarrage)
+docker compose up -d db
+./mvnw spring-boot:run
+```
 
 ## Roadmap
 
@@ -157,8 +183,8 @@ Cache Maven activé (`actions/setup-java` avec `cache: maven`) + cache GHA pour 
 |---|---|---|
 | 1 | Bootstrap projet, Docker, CI | ✅ |
 | 2 | Twelve-Factor, Docker Compose, Nginx, logs structurés | ✅ |
-| 3 | API REST, HATEOAS, RFC 7807, pagination, versioning | en cours |
-| 4 | Persistence ORM, relations, CRUD, RGPD | à faire |
+| 3 | API REST, HATEOAS, RFC 7807, pagination, versioning | ✅ |
+| 4 | Persistence ORM, relations, CRUD, RGPD | en cours |
 | 5 | WebSockets temps réel, notifications | à faire |
 | 6 | Sécurité durcie : JWT, OAuth2, TLS | à faire |
 | 7 | Tests complets, qualité, CI/CD enrichie | à faire |

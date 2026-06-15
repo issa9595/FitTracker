@@ -9,6 +9,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ProgramService {
@@ -19,6 +20,7 @@ public class ProgramService {
     this.repository = repository;
   }
 
+  @Transactional
   public Program create(UUID userId, ProgramCreateRequest req) {
     if (req.endDate().isBefore(req.startDate())) {
       throw new BusinessRuleException("endDate doit etre apres startDate");
@@ -36,6 +38,7 @@ public class ProgramService {
     return repository.save(program);
   }
 
+  @Transactional(readOnly = true)
   public Program getOwned(UUID id, UUID userId) {
     Program p = repository.findById(id).orElseThrow(() -> new NotFoundException("Program", id));
     if (!p.getUserId().equals(userId)) {
@@ -44,6 +47,7 @@ public class ProgramService {
     return p;
   }
 
+  @Transactional
   public Program update(UUID id, UUID userId, ProgramUpdateRequest req) {
     Program p = getOwned(id, userId);
     if (req.name() != null) {
@@ -67,11 +71,13 @@ public class ProgramService {
     return repository.save(p);
   }
 
+  @Transactional
   public void delete(UUID id, UUID userId) {
     getOwned(id, userId);
     repository.deleteById(id);
   }
 
+  @Transactional(readOnly = true)
   public List<Program> listForUser(UUID userId) {
     return repository.findByUserId(userId);
   }

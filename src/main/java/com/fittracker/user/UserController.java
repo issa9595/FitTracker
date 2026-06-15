@@ -4,6 +4,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 import com.fittracker.common.security.CurrentUserProvider;
+import com.fittracker.support.rgpd.UserAnonymizationService;
 import com.fittracker.user.dto.ProfileResponse;
 import com.fittracker.user.dto.ProfileUpdateRequest;
 import com.fittracker.user.dto.UserResponse;
@@ -14,6 +15,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,12 +31,17 @@ public class UserController {
   private final UserService userService;
   private final UserMapper mapper;
   private final CurrentUserProvider currentUser;
+  private final UserAnonymizationService anonymizationService;
 
   public UserController(
-      UserService userService, UserMapper mapper, CurrentUserProvider currentUser) {
+      UserService userService,
+      UserMapper mapper,
+      CurrentUserProvider currentUser,
+      UserAnonymizationService anonymizationService) {
     this.userService = userService;
     this.mapper = mapper;
     this.currentUser = currentUser;
+    this.anonymizationService = anonymizationService;
   }
 
   @Operation(summary = "Recupere l'utilisateur courant")
@@ -63,6 +71,14 @@ public class UserController {
   public ProfileResponse updateMyProfile(@Valid @RequestBody ProfileUpdateRequest body) {
     var profile = userService.updateProfile(currentUser.currentUserId(), body);
     return addLinks(mapper.toResponse(profile));
+  }
+
+  @Operation(summary = "Supprime (anonymise) le compte de l'utilisateur courant (RGPD effacement)")
+  @ApiResponse(responseCode = "204", description = "Compte anonymise")
+  @DeleteMapping
+  public ResponseEntity<Void> deleteMe() {
+    anonymizationService.anonymize(currentUser.currentUserId());
+    return ResponseEntity.noContent().build();
   }
 
   private UserResponse addLinks(UserResponse response) {

@@ -1,8 +1,28 @@
-# Profil 'test' : herite des defauts de dev avec quelques surcharges.
+# Profil 'test' : la datasource est fournie par Testcontainers via l'URL JDBC speciale "tc://".
+# Le driver ContainerDatabaseDriver demarre automatiquement un conteneur postgres:16-alpine ;
+# Flyway applique les migrations dessus et Hibernate valide le schema (ddl-auto=validate).
+# Necessite Docker actif (idem CI). Aucune base externe a installer.
 spring:
   main:
     banner-mode: off
+  datasource:
+    url: jdbc:tc:postgresql:16-alpine:///fittracker
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
 logging:
   level:
     root: WARN
     com.fittracker: INFO
+    org.testcontainers: WARN
+    org.flywaydb: WARN

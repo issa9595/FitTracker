@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class NotificationService {
@@ -22,8 +23,9 @@ public class NotificationService {
   }
 
   /** Renvoie une page paginee par curseur. Le curseur encode l'id de la derniere notif lue. */
+  @Transactional(readOnly = true)
   public CursorSlice list(UUID userId, CursorPageRequest pageRequest) {
-    List<Notification> all = repository.findByUserOrderByRecent(userId);
+    List<Notification> all = repository.findByUserIdOrderByCreatedAtDescIdDesc(userId);
     String afterIdRaw = cursorEncoder.decode(pageRequest.cursor());
     UUID afterId = afterIdRaw == null ? null : UUID.fromString(afterIdRaw);
 
@@ -39,10 +41,13 @@ public class NotificationService {
     int endExclusive = Math.min(startIndex + pageRequest.size(), all.size());
     List<Notification> slice = all.subList(startIndex, endExclusive);
     String nextCursor =
-        endExclusive < all.size() ? cursorEncoder.encode(slice.get(slice.size() - 1).getId().toString()) : null;
+        endExclusive < all.size()
+            ? cursorEncoder.encode(slice.get(slice.size() - 1).getId().toString())
+            : null;
     return new CursorSlice(slice, nextCursor);
   }
 
+  @Transactional
   public Notification markAsRead(UUID notificationId, UUID userId) {
     Notification n =
         repository
@@ -58,9 +63,10 @@ public class NotificationService {
     return n;
   }
 
-  /** Pousse une notification de demo pour le seed. Sera remplace en phase 5 par le NotificationPublisher. */
+  /** Pousse des notifications de demo (seed dev/test). Sera remplace en phase 5 par l'evenementiel. */
+  @Transactional
   public void seedDemo(UUID userId) {
-    if (!repository.findByUserOrderByRecent(userId).isEmpty()) {
+    if (!repository.findByUserId(userId).isEmpty()) {
       return;
     }
     repository.save(

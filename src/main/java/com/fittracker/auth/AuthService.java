@@ -10,10 +10,11 @@ import com.fittracker.user.UserRepository;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Implementation stub pour la Phase 3 : valide les inputs et persiste un User, mais renvoie un
- * faux access token. La cryptographie reelle (BCrypt + JWT RS256) arrivera en Phase 6.
+ * Implementation stub pour la Phase 3 : valide les inputs et persiste un User, mais renvoie un faux
+ * access token. La cryptographie reelle (BCrypt + JWT RS256) arrivera en Phase 6.
  */
 @Service
 public class AuthService {
@@ -27,8 +28,9 @@ public class AuthService {
     this.userRepository = userRepository;
   }
 
+  @Transactional
   public AuthResponse register(RegisterRequest req) {
-    if (userRepository.existsByEmail(req.email())) {
+    if (userRepository.existsByEmailIgnoreCase(req.email())) {
       throw new ConflictException("Email deja utilise");
     }
     User user =
@@ -43,9 +45,12 @@ public class AuthService {
         user.getId(), user.getEmail(), STUB_TOKEN, "bearer", STUB_EXPIRES_IN_SECONDS);
   }
 
+  @Transactional(readOnly = true)
   public AuthResponse login(LoginRequest req) {
     User user =
-        userRepository.findByEmail(req.email()).orElseThrow(() -> new NotFoundException("User", req.email()));
+        userRepository
+            .findByEmailIgnoreCase(req.email())
+            .orElseThrow(() -> new NotFoundException("User", req.email()));
     return new AuthResponse(
         user.getId(), user.getEmail(), STUB_TOKEN, "bearer", STUB_EXPIRES_IN_SECONDS);
   }

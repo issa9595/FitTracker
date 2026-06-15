@@ -52,8 +52,10 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: maven
 
-      - name: Maven verify (skip integration tests)
-        run: ./mvnw -B verify -DskipITs
+      # Docker est disponible sur ubuntu-latest : les tests (unitaires + integration
+      # Testcontainers via jdbc:tc:postgresql) s'executent tous ici.
+      - name: Maven verify (unit + integration tests Testcontainers)
+        run: ./mvnw -B verify
 
       - name: Upload build artefact (jar)
         if: success()

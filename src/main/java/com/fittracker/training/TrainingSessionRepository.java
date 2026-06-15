@@ -1,19 +1,22 @@
 package com.fittracker.training;
 
-import com.fittracker.common.repository.InMemoryRepository;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-@Repository
-public class TrainingSessionRepository extends InMemoryRepository<TrainingSession, UUID> {
+/**
+ * Repo des sessions. Etend {@link JpaSpecificationExecutor} pour permettre le filtrage dynamique
+ * multi-champs (Specifications) exige par le livrable 3.
+ */
+public interface TrainingSessionRepository
+    extends JpaRepository<TrainingSession, UUID>, JpaSpecificationExecutor<TrainingSession> {
 
-  @Override
-  protected UUID idOf(TrainingSession entity) {
-    return entity.getId();
-  }
+  List<TrainingSession> findByUserId(UUID userId);
 
-  public List<TrainingSession> findByUserId(UUID userId) {
-    return stream().filter(s -> userId.equals(s.getUserId())).toList();
-  }
+  Page<TrainingSession> findByUserId(UUID userId, Pageable pageable);
+
+  long countByUserId(UUID userId);
 }

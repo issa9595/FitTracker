@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fittracker.training.dto.TrainingSessionCreateRequest;
+import com.fittracker.user.User;
+import com.fittracker.user.UserRepository;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,7 @@ class TrainingSessionControllerTest {
   @Autowired private WebApplicationContext webApplicationContext;
   @Autowired private ObjectMapper objectMapper;
   @Autowired private TrainingSessionRepository repository;
+  @Autowired private UserRepository userRepository;
 
   private MockMvc mockMvc;
 
@@ -62,10 +65,14 @@ class TrainingSessionControllerTest {
   @Test
   void should_return_403_problem_when_session_belongs_to_other_user() throws Exception {
     UUID id = UUID.randomUUID();
+    UUID otherUserId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+    // La FK training_sessions.user_id exige un user existant : on cree le proprietaire "ennemi".
+    userRepository.save(
+        new User(otherUserId, "enemy-" + otherUserId + "@x.com", "h", "Enemy", OffsetDateTime.now()));
     TrainingSession foreign =
         new TrainingSession(
             id,
-            UUID.fromString("99999999-9999-9999-9999-999999999999"),
+            otherUserId,
             OffsetDateTime.now(),
             1800,
             SessionType.RUNNING,
