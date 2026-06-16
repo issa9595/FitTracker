@@ -177,6 +177,84 @@ git tag v0.1.0 && git push origin v0.1.0   # déclenche le build + push GHCR + r
 - Filtrage : `?filter=field:op:value,field2:op:value&filterOp=AND`. Opérateurs : `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `like`.
 - Versioning : préfixe URI (principal) + négociation `Accept: application/vnd.fittracker.v2+json` (secondaire), avec headers `Deprecation`/`Sunset`/`Link` sur les endpoints legacy.
 
+## Interfaces web (démo)
+
+Le projet est un back-end : il n'y a pas d'application front. Deux surfaces web sont néanmoins
+exposées pour la démonstration.
+
+| Page | URL (app seule, port 8080) | Rôle |
+|---|---|---|
+| Swagger UI | `http://localhost:8080/swagger-ui.html` | explorateur interactif de toute l'API REST |
+| OpenAPI JSON | `http://localhost:8080/v3/api-docs` | contrat OpenAPI brut |
+| Démo notifications | `http://localhost:8080/notifications.html` | page statique (phase 5) : login → JWT → WebSocket temps réel |
+
+### Lancer et ouvrir la démo
+
+```bash
+./scripts/dev-run.sh                       # app sur http://localhost:8080 (profil dev, DB jetable)
+# attendre la ligne "Started FitTrackerApplication"
+```
+
+Puis, sur `http://localhost:8080/notifications.html`, se connecter avec l'utilisateur de démo
+**seedé en profil `dev`/`test`** :
+
+- email : `test@fittracker.dev`
+- mot de passe : `ChangeMe123!`
+
+> **Attention au port.** `dev-run.sh` sert l'app directement sur le **port 8080**. La stack
+> `docker compose` passe par Nginx sur le **port 80** (`http://localhost/...`) : c'est une instance
+> *différente*. Ne mélange pas les deux — utilise l'URL correspondant à la façon dont tu as démarré.
+
+### Voir une notification arriver en temps réel
+
+Sur la page connectée (utilisateur A), déclenche un événement depuis un autre terminal (utilisateur B
+qui termine une séance, A devant suivre B) :
+
+```bash
+BASE=http://localhost:8080
+A=$(curl -s -X POST $BASE/api/v1/auth/register -H 'Content-Type: application/json' -d '{"email":"alice@demo.dev","password":"ChangeMe123!","displayName":"Alice"}')
+B=$(curl -s -X POST $BASE/api/v1/auth/register -H 'Content-Type: application/json' -d '{"email":"bob@demo.dev","password":"ChangeMe123!","displayName":"Bob"}')
+AID=$(echo "$A" | jq -r .userId);  ATOK=$(echo "$A" | jq -r .accessToken)
+BID=$(echo "$B" | jq -r .userId);  BTOK=$(echo "$B" | jq -r .accessToken)
+# connecte-toi sur la page avec alice@demo.dev / ChangeMe123!, puis :
+curl -s -X POST $BASE/api/v1/users/$AID/follows -H "Authorization: Bearer $ATOK" -H 'Content-Type: application/json' -d "{\"followeeId\":\"$BID\"}"
+curl -s -X POST $BASE/api/v1/training-sessions  -H "Authorization: Bearer $BTOK" -H 'Content-Type: application/json' -d '{"startedAt":"2026-06-16T10:00:00Z","durationSeconds":1800,"type":"RUNNING","notes":"demo"}'
+# -> une notif FRIEND_SESSION_COMPLETED apparaît en temps réel chez Alice
+```
+
+### Dépannage — « Login échoué (401) »
+
+Depuis la phase 6, le login **vérifie réellement** le mot de passe (BCrypt) ; un 401 signifie donc
+que les identifiants ne correspondent pas à ce qui est en base. Causes et solutions :
+
+1. **Mauvais port / mauvaise instance.** La page ouverte ne tape pas sur l'app que tu crois. Vérifie
+   l'URL (`:8080` pour `dev-run.sh`, `:80` pour `docker compose`).
+2. **Profil `prod`.** L'utilisateur de démo n'est seedé qu'en profils `dev`/`test`. En `prod`, il
+   n'existe pas → crée ton compte via `/api/v1/auth/register` (voir solution de secours).
+3. **Base périmée.** Un ancien utilisateur (hash différent) persiste dans un volume Docker. Repars
+   propre :
+   ```bash
+   docker compose down -v 2>/dev/null; docker rm -f fittracker-dev-db 2>/dev/null
+   ./scripts/dev-run.sh
+   ```
+
+Diagnostic rapide (200 attendu) :
+
+```bash
+curl -i -X POST http://localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"test@fittracker.dev","password":"ChangeMe123!"}'
+```
+
+**Solution de secours (marche dans tous les cas)** — créer son propre compte puis se connecter avec :
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"demo@demo.dev","password":"Demo12345!","displayName":"Demo"}'
+# puis login sur la page avec demo@demo.dev / Demo12345!
+```
+
 ## Documentation
 
 - [`docs/twelve-factor.md`](docs/twelve-factor.md) — Application des 12 facteurs
