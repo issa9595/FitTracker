@@ -77,7 +77,6 @@
 ## 🔄 Phase 4 — Persistence ORM, relations, CRUD, RGPD (EN COURS)
 
 **Branche : `feature/phase-4-persistence`**
-**Plan détaillé : [docs/superpowers/plans/2026-06-05-phase-4-persistence.md](docs/superpowers/plans/2026-06-05-phase-4-persistence.md)**
 
 ### ⚠️ Bloqueur environnement local
 - [ ] **JDK 21 installé** (`java -version` KO actuellement → `brew install --cask temurin@21`)
