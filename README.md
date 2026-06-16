@@ -278,6 +278,26 @@ curl -s -X POST http://localhost:8080/api/v1/auth/register \
 # puis login sur la page avec demo@demo.dev / Demo12345!
 ```
 
+## Front-end (bonus, hors périmètre du brief)
+
+> Le cahier des charges ne demande **pas** de frontend (projet back-end, hormis la page statique de
+> démo WebSocket de la phase 5). Les clients ci-dessous sont un **bonus** : ils consomment l'API
+> existante **sans aucune modification du back-end**, et n'entrent pas dans le build Maven ni la CI.
+
+Deux clients sont fournis, tous deux à servir sur le **port 3000** (origine déjà autorisée par le CORS
+de l'API). Le back-end doit tourner (`./scripts/dev-run.sh`, Docker actif). Identifiants de démo :
+`test@fittracker.dev` / `ChangeMe123!`.
+
+| Client | Stack | Lancer |
+|---|---|---|
+| `frontend/index.html` | HTML + JS vanilla, Tailwind (CDN) — zéro build | `cd frontend && python3 -m http.server 3000` |
+| `frontend-next/` | Next.js (App Router, TS) + Tailwind + shadcn/ui, notifs temps réel | `cd frontend-next && npm install && npm run dev` |
+
+Les deux couvrent l'ensemble du métier : authentification (JWT), séances + exercices, programmes,
+relations sociales (follow), notifications **temps réel** (WebSocket STOMP) et profil. Détails
+d'intégration (JWT en `Authorization`, WebSocket SockJS, CORS sur `:3000`/`:5173`) dans la section
+« Interfaces web (démo) » ci-dessus.
+
 ## Documentation
 
 - [`docs/twelve-factor.md`](docs/twelve-factor.md) — Application des 12 facteurs
