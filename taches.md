@@ -4,7 +4,7 @@
 > Rendu : **16/06/2026**. 1 phase = 1 livrable.
 > Légende : ✅ fait · 🔄 en cours · ⬜ à faire · ⏭️ phase ultérieure
 
-**Dernière mise à jour : 2026-06-15**
+**Dernière mise à jour : 2026-06-16**
 
 ---
 
@@ -28,10 +28,10 @@
 | 1 | Bootstrap, Docker, CI | ✅ Mergée | PR #1 |
 | 2 | Twelve-Factor, Compose, Nginx, logs JSON | ✅ Mergée | PR #2 |
 | 3 | REST, HATEOAS, RFC 7807, pagination, versioning | ✅ Mergée | PR #3 (`06eac24`) |
-| 4 | Persistence ORM, relations, CRUD, RGPD | 🔄 Code écrit, à vérifier (`mvn verify`) | `feature/phase-4-persistence` |
-| 5 | WebSockets temps réel, notifications | 🔄 Code écrit, à vérifier (`mvn verify`) | `feature/phase-5-websockets` |
-| 6 | Sécurité durcie : JWT, OAuth2, TLS | ⏭️ À faire | — |
-| 7 | Tests complets, qualité, CI/CD enrichie | ⏭️ À faire | — |
+| 4 | Persistence ORM, relations, CRUD, RGPD | ✅ Mergée | PR #4 |
+| 5 | WebSockets temps réel, notifications | ✅ Mergée | PR #5 |
+| 6 | Sécurité durcie : Spring Security resource server, OWASP | ✅ Mergée | PR #6 |
+| 7 | Tests, couverture JaCoCo, CI/CD enrichie (release GHCR) | ✅ Mergée | PR #7 |
 
 ---
 
@@ -159,16 +159,19 @@
 
 ---
 
-## ⏭️ Phase 7 — Tests complets, qualité, CI/CD enrichie
+## ✅ Phase 7 — Tests, couverture, CI/CD enrichie (version allégée)
 
-- [ ] Couverture JaCoCo ≥ 80 % services / 70 % global, rapport en artefact CI
-- [ ] Tests unitaires complets (nommage `should_<expected>_when_<context>`)
-- [ ] Tests d'intégration Testcontainers Postgres + Redis, bout-en-bout par feature
-- [ ] (Optionnel) Cucumber JVM ≥ 3 scénarios
-- [ ] `ci.yml` enrichi (lint → unit → IT → docker → JaCoCo)
-- [ ] `release.yml` (tag `v*`, push GHCR, release notes)
-- [ ] Badge couverture README
-- [ ] Spotless + Checkstyle en CI
+**Branche : `feature/phase-7-tests-cicd`**
+
+- [x] Couverture JaCoCo double agent (Surefire + Failsafe) + merge, rapport en artefact CI
+- [x] Règle de couverture vérifiée à `verify` : **≥ 80 %** par `*Service` (réel 98,5 %), **≥ 70 %** global (réel 79,2 %)
+- [x] Tests unitaires de services (Mockito + AssertJ, nommage `should_<expected>_when_<context>`)
+- [x] Tests d'intégration Testcontainers Postgres + bout-en-bout WebSocket (existants, phases 4/5)
+- [x] `release.yml` (tag `v*`, push GHCR, release notes auto)
+- [x] `docs/testing.md` (pyramide, double agent JaCoCo, exclusions)
+- [x] Spotless + Checkstyle en CI (job `lint`, déjà présent)
+- [~] Badge couverture README → mention textuelle + lien artefact (pas de service externe)
+- [ ] ~~(Optionnel) Cucumber JVM~~ — ignoré (version allégée, cf. `docs/testing.md` §6)
 
 ---
 
@@ -176,8 +179,8 @@
 
 - [x] `README.md`
 - [x] `docs/twelve-factor.md`
-- [x] `docs/security.md` (vue d'ensemble — à compléter phase 6)
+- [x] `docs/security.md` (OWASP & RGPD — complété phase 6)
 - [x] `docs/api-examples.md`
-- [ ] `docs/architecture.md` (ERD) — **phase 4**
-- [ ] `docs/websockets.md` — phase 5
-- [ ] `docs/testing.md` — phase 7
+- [x] `docs/architecture.md` (ERD) — phase 4
+- [x] `docs/websockets.md` — phase 5
+- [x] `docs/testing.md` — phase 7

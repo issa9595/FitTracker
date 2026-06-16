@@ -4,7 +4,9 @@
 
 Back-end Java de suivi d'entraînement sportif — projet de fin d'année (rendu **16/06/2026**).
 
-> **État** : Phase 5 — Notifications temps réel via WebSocket STOMP authentifié JWT (broker en mémoire, événements métier, UI de démo).
+> **État** : Projet complet (phases 1 → 7). Phase 7 — Tests (pyramide unitaires/intégration/WebSocket), couverture **JaCoCo** mesurée (services 98,5 %, global 79,2 %) et publiée en artefact CI, pipeline de **release** sur tag `v*` poussant l'image sur GHCR.
+
+> **Couverture** : rapport JaCoCo publié en artefact dans le job `build` de la CI (onglet *Actions* → *Artifacts*). Règle vérifiée à chaque `verify` : **≥ 80 %** de lignes sur chaque `*Service`, **≥ 70 %** global. Détails dans [`docs/testing.md`](docs/testing.md).
 
 ## Stack
 
@@ -136,11 +138,26 @@ Pipeline GitHub Actions déclenché sur `push` vers `main` et sur chaque pull re
 | Job | Contenu |
 |---|---|
 | `lint` | `./mvnw spotless:check` + `./mvnw checkstyle:check` |
-| `build` | `./mvnw verify` (Java 21) — tests unitaires + intégration Testcontainers Postgres, artefact `fittracker.jar` |
+| `build` | `./mvnw verify` (Java 21) — tests unitaires + intégration Testcontainers Postgres, **rapport JaCoCo** publié en artefact (`jacoco-report-java-21`), artefact `fittracker.jar` |
 | `docker-build` | Build image Docker (sans push), smoke test `curl /actuator/health`, fail si > 250 Mo |
 | `compose-validate` | Démarre la stack complète (app+db+redis+nginx) et valide santé, headers, logs JSON |
 
 Cache Maven activé (`actions/setup-java` avec `cache: maven`) + cache GHA pour les couches Docker.
+
+### Release (CD) — image sur GHCR
+
+Le workflow [`.github/workflows/release.yml`](.github/workflows/release.yml) se déclenche sur un
+**tag de version `v*`** (posé sur `main`) et :
+
+1. construit l'image Docker et la pousse sur **GHCR** : `ghcr.io/issa9595/fittracker:<tag>` et `:latest` ;
+2. crée une **GitHub Release** avec notes générées automatiquement.
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0   # déclenche le build + push GHCR + release
+```
+
+> Le package GHCR est **privé par défaut** (lié au repo privé) ; c'est attendu. Le rendre public
+> se fait depuis les *Package settings* de GitHub.
 
 ## Conventions
 
@@ -167,6 +184,7 @@ Cache Maven activé (`actions/setup-java` avec `cache: maven`) + cache GHA pour 
 - [`docs/api-examples.md`](docs/api-examples.md) — 12 paires requête/réponse (auth, pagination, filtrage, erreurs RFC 7807, versioning)
 - [`docs/architecture.md`](docs/architecture.md) — schéma containers + ERD Mermaid + choix de persistance (phase 4)
 - [`docs/websockets.md`](docs/websockets.md) — STOMP, auth JWT au CONNECT, événements, reconnexion, démo (phase 5)
+- [`docs/testing.md`](docs/testing.md) — pyramide de tests, double agent JaCoCo, couverture par couche et exclusions (phase 7)
 
 ## Notifications temps réel (phase 5)
 
@@ -218,8 +236,8 @@ docker compose up -d db
 | 2 | Twelve-Factor, Docker Compose, Nginx, logs structurés | ✅ |
 | 3 | API REST, HATEOAS, RFC 7807, pagination, versioning | ✅ |
 | 4 | Persistence ORM, relations, CRUD, RGPD | ✅ |
-| 5 | WebSockets temps réel, notifications | en cours |
-| 6 | Sécurité durcie : JWT, OAuth2, TLS | à faire |
-| 7 | Tests complets, qualité, CI/CD enrichie | à faire |
+| 5 | WebSockets temps réel, notifications | ✅ |
+| 6 | Sécurité durcie : Spring Security resource server, durcissement OWASP | ✅ |
+| 7 | Tests (couverture JaCoCo mesurée & publiée), CI/CD enrichie (release GHCR) | ✅ |
 
 Détails dans `fittracker_brief.md` (contrat du projet).
