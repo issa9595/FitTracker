@@ -59,7 +59,21 @@ L'`docker-compose.override.yml` est appliqué automatiquement et :
 SPRING_PROFILES_ACTIVE=prod docker compose -f docker-compose.yml up -d --build
 ```
 
+### En local en une commande (script dev)
+
+`scripts/dev-run.sh` démarre un PostgreSQL jetable (Docker) puis lance l'app en profil `dev` sur http://localhost:8080. `Ctrl-C` arrête l'app **et** supprime la base.
+
+```bash
+./scripts/dev-run.sh            # tout-en-un ; DB_PORT=5434 ./scripts/dev-run.sh si 5432/5433 occupé
+# dans un autre terminal, démo sécurité (401 sans token -> login -> 200 avec token) :
+./scripts/dev-smoke.sh
+```
+
+Le profil `dev` seede un utilisateur de démo : `test@fittracker.dev` / `ChangeMe123!`.
+
 ### En local sans Docker (app seule)
+
+Nécessite un PostgreSQL accessible (par défaut `localhost:5432`, base/role/mot de passe `fittracker`) :
 
 ```bash
 ./mvnw spring-boot:run

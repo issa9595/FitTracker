@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fittracker.auth.JwtService;
+import com.fittracker.support.TestAuth;
 import com.fittracker.training.dto.TrainingSessionCreateRequest;
 import com.fittracker.user.User;
 import com.fittracker.user.UserRepository;
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -31,12 +34,16 @@ class TrainingSessionControllerTest {
   @Autowired private ObjectMapper objectMapper;
   @Autowired private TrainingSessionRepository repository;
   @Autowired private UserRepository userRepository;
+  @Autowired private JwtService jwtService;
 
   private MockMvc mockMvc;
 
   @org.junit.jupiter.api.BeforeEach
   void setup() {
-    mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+    mockMvc =
+        MockMvcBuilders.webAppContextSetup(webApplicationContext)
+            .apply(SecurityMockMvcConfigurers.springSecurity())
+            .build();
   }
 
   @Test
@@ -47,6 +54,7 @@ class TrainingSessionControllerTest {
         mockMvc
             .perform(
                 post("/api/v1/training-sessions")
+                    .with(TestAuth.bearerTestUser(jwtService))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isCreated())
@@ -56,7 +64,7 @@ class TrainingSessionControllerTest {
     String id = objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText();
 
     mockMvc
-        .perform(get("/api/v1/training-sessions/" + id))
+        .perform(get("/api/v1/training-sessions/" + id).with(TestAuth.bearerTestUser(jwtService)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(id))
         .andExpect(jsonPath("$.type").value("STRENGTH"));
@@ -81,12 +89,12 @@ class TrainingSessionControllerTest {
     repository.save(foreign);
 
     mockMvc
-        .perform(get("/api/v1/training-sessions/" + id))
+        .perform(get("/api/v1/training-sessions/" + id).with(TestAuth.bearerTestUser(jwtService)))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.type").value("https://fittracker.dev/problems/forbidden"));
 
     mockMvc
-        .perform(delete("/api/v1/training-sessions/" + id))
+        .perform(delete("/api/v1/training-sessions/" + id).with(TestAuth.bearerTestUser(jwtService)))
         .andExpect(status().isForbidden());
   }
 }

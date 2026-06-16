@@ -3,29 +3,36 @@ package com.fittracker.user;
 import com.fittracker.common.security.CurrentUserProvider;
 import jakarta.annotation.PostConstruct;
 import java.time.OffsetDateTime;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Seed dev/test : cree le user "test" reference par CurrentUserProvider afin que les endpoints
- * /users/me fonctionnent sans passer par /auth/register. Desactive en prod (profil exclu). Sera
- * retire en Phase 6 quand l'auth reelle sera en place.
+ * /users/me fonctionnent et que le login de demo soit possible. Le mot de passe est hache BCrypt
+ * (meme encodeur que la prod). Desactive en prod (profil exclu).
  */
 @Component
 @org.springframework.context.annotation.Profile({"dev", "test"})
 public class UserSeed {
 
+  /** Mot de passe en clair du user de demo (profils dev/test uniquement). */
+  public static final String TEST_USER_PASSWORD = "ChangeMe123!";
+
   private final UserRepository userRepository;
   private final ProfileRepository profileRepository;
+  private final PasswordEncoder passwordEncoder;
   private final TransactionTemplate transactionTemplate;
 
   public UserSeed(
       UserRepository userRepository,
       ProfileRepository profileRepository,
+      PasswordEncoder passwordEncoder,
       PlatformTransactionManager transactionManager) {
     this.userRepository = userRepository;
     this.profileRepository = profileRepository;
+    this.passwordEncoder = passwordEncoder;
     this.transactionTemplate = new TransactionTemplate(transactionManager);
   }
 
@@ -49,7 +56,7 @@ public class UserSeed {
             new User(
                 CurrentUserProvider.TEST_USER_ID,
                 "test@fittracker.dev",
-                "$2a$12$disabled-phase-6-real-hash",
+                passwordEncoder.encode(TEST_USER_PASSWORD),
                 "Test User",
                 OffsetDateTime.now()));
 

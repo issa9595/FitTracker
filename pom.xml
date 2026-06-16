@@ -35,6 +35,7 @@
         <springdoc.version>2.6.0</springdoc.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <bucket4j.version>8.7.0</bucket4j.version>
 
         <!--
           Surcharge de la version Testcontainers geree par Spring Boot 3.3.5 (1.20.x).
@@ -83,6 +84,23 @@
             <artifactId>jjwt-jackson</artifactId>
             <version>${jjwt.version}</version>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- Spring Security : authentification/autorisation appliquees (Phase 6) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <!-- Resource Server : Spring valide les JWT (HS256) via NimbusJwtDecoder (Phase 6) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+        <!-- Rate limiting en memoire (token bucket) sur /api/v1/auth/* (Phase 6, OWASP A07) -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>${bucket4j.version}</version>
         </dependency>
 
         <!-- JPA + Hibernate (Phase 4) -->
@@ -150,6 +168,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Cable la chaine de filtres Spring Security dans MockMvc (springSecurity()) -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
 

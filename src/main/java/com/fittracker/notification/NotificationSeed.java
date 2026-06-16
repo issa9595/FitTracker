@@ -9,6 +9,10 @@ import org.springframework.stereotype.Component;
 /**
  * Seed dev/test de notifications de demo. {@code @DependsOn("userSeed")} garantit que le user de
  * test (et donc la FK notifications.user_id) existe avant l'insertion.
+ *
+ * <p>Le seed s'execute au demarrage, hors requete HTTP : il n'y a pas de {@code SecurityContext}.
+ * On cible donc directement {@link CurrentUserProvider#TEST_USER_ID} (et non
+ * {@code currentUserId()} qui exige une authentification depuis la Phase 6).
  */
 @Component
 @Profile({"dev", "test"})
@@ -16,15 +20,13 @@ import org.springframework.stereotype.Component;
 public class NotificationSeed {
 
   private final NotificationService service;
-  private final CurrentUserProvider currentUser;
 
-  public NotificationSeed(NotificationService service, CurrentUserProvider currentUser) {
+  public NotificationSeed(NotificationService service) {
     this.service = service;
-    this.currentUser = currentUser;
   }
 
   @PostConstruct
   public void seed() {
-    service.seedDemo(currentUser.currentUserId());
+    service.seedDemo(CurrentUserProvider.TEST_USER_ID);
   }
 }

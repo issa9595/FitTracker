@@ -79,6 +79,13 @@ info:
     version: ${APP_VERSION:0.1.0-SNAPSHOT}
     profile: ${spring.profiles.active}
 
+# OpenAPI / Swagger UI : activable/desactivable par env (desactive en prod, cf. application-prod.yml).
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:true}
+
 logging:
   level:
     root: ${LOG_LEVEL_ROOT:INFO}
