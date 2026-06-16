@@ -57,6 +57,17 @@ jobs:
       - name: Maven verify (unit + integration tests Testcontainers)
         run: ./mvnw -B verify
 
+      # Couverture JaCoCo (fusion unit + IT) publiee en artefact, meme si la regle
+      # de couverture echoue, pour pouvoir diagnostiquer la ou ca coince.
+      - name: Upload JaCoCo report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report-java-${{ matrix.java }}
+          path: target/site/jacoco/
+          retention-days: 7
+          if-no-files-found: warn
+
       - name: Upload build artefact (jar)
         if: success()
         uses: actions/upload-artifact@v4
