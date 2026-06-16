@@ -35,6 +35,13 @@ Stack cible complète (Flyway, JJWT, OAuth2, Testcontainers, etc.) : voir `fittr
 
 ## Quick start
 
+### Récupérer le projet
+
+```bash
+git clone https://github.com/issa9595/FitTracker.git
+cd FitTracker
+```
+
 ### Stack complète via Docker Compose (recommandé)
 
 ```bash
@@ -104,30 +111,46 @@ make docker-run     # build + run image sur 8080
 
 ```
 fittracker/
-├── .github/workflows/ci.yml         # pipeline lint → build → docker-build
-├── .mvn/wrapper/                    # Maven Wrapper
-├── docker/
-│   └── nginx/                       # nginx.conf + conf.d/fittracker.conf
+├── .github/workflows/
+│   ├── ci.yml                       # lint → build (+JaCoCo) → docker-build → compose-validate
+│   └── release.yml                  # sur tag v* : build + push image GHCR + GitHub Release
+├── .mvn/wrapper/                    # Maven Wrapper (./mvnw)
+├── docker/nginx/                    # nginx.conf + conf.d (reverse-proxy, headers, /ws upgrade)
 ├── docs/
-│   ├── twelve-factor.md             # 12-Factor : où chaque facteur est appliqué
-│   └── security.md                  # OWASP & RGPD, vue d'ensemble
-├── scripts/build-and-push.sh        # build + tag image, push optionnel
-├── src/
-│   ├── main/
-│   │   ├── java/com/fittracker/     # code applicatif
-│   │   └── resources/
-│   │       ├── application.yml      # config dev par défaut, placeholders ${VAR}
-│   │       ├── application-prod.yml # surcharges prod via env vars (no defaults)
-│   │       └── logback-spring.xml   # dev=texte coloré, prod=JSON
-│   └── test/java/com/fittracker/
+│   ├── architecture.md              # schéma containers + ERD Mermaid (phase 4)
+│   ├── twelve-factor.md             # application des 12 facteurs
+│   ├── security.md                  # OWASP Top 10, RGPD, CSRF, évolutions
+│   ├── api-examples.md              # paires requête/réponse (pagination, filtrage, RFC 7807)
+│   ├── websockets.md                # STOMP, auth JWT au CONNECT, reconnexion (phase 5)
+│   └── testing.md                   # pyramide de tests, double agent JaCoCo (phase 7)
+├── scripts/
+│   ├── dev-run.sh                   # lance l'app + PostgreSQL jetable (profil dev) en 1 commande
+│   ├── dev-smoke.sh                 # démo sécurité (401 sans token → login → 200)
+│   └── build-and-push.sh            # build + tag image, push optionnel
+├── src/main/java/com/fittracker/    # packaging par feature
+│   ├── FitTrackerApplication.java
+│   ├── auth/                        # JwtService, AuthController/Service, JwtAuthFilter
+│   ├── user/                        # User, Profile, services, seeds, DTO/mappers
+│   ├── training/                    # Exercise, TrainingSession, SessionExercise, Program
+│   ├── social/                      # Follow (M-N self-référençant)
+│   ├── notification/               # Notification + WebSocket (events, listener)
+│   ├── common/                      # erreurs RFC 7807, pagination, filtrage, sécurité
+│   ├── config/                      # SecurityConfig, WebSocketConfig, OpenApiConfig
+│   └── support/                     # auditing JPA, pipeline RGPD
+├── src/main/resources/
+│   ├── application.yml              # config dev par défaut, placeholders ${VAR:default}
+│   ├── application-prod.yml         # surcharges prod via env vars
+│   ├── application-test.yml         # profil test (Testcontainers)
+│   ├── logback-spring.xml           # dev=texte coloré, prod=JSON
+│   ├── db/migration/                # Flyway V1 (schéma), V2 (exercices), V3 (sentinelle RGPD)
+│   └── static/notifications.html    # page de démo WebSocket (phase 5)
+├── src/test/java/com/fittracker/    # tests unitaires + persistence/*IT + WebSocket IT
 ├── docker-compose.yml               # 4 services prod : app + db + redis + nginx
 ├── docker-compose.override.yml      # surcharges dev
-├── Dockerfile                       # multi-stage, JRE jlink, user non-root
-├── Makefile                         # raccourcis
-├── checkstyle.xml                   # rules Checkstyle
-├── pom.xml                          # Spring Boot 3.3 + plugins qualité
+├── Dockerfile                       # multi-stage, JRE alpine, user non-root
+├── Makefile · checkstyle.xml · pom.xml
 ├── .env.example                     # toutes les variables d'env documentées
-├── .gitignore / .dockerignore       # Java/Maven/IDE/macOS/secrets
+├── .gitignore / .dockerignore
 └── README.md
 ```
 
