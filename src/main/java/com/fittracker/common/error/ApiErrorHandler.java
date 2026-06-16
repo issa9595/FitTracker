@@ -18,6 +18,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Handler global d'exceptions conforme RFC 7807 (application/problem+json).
@@ -111,6 +112,19 @@ public class ApiErrorHandler {
       IllegalArgumentException ex, HttpServletRequest req) {
     return respond(
         build(HttpStatus.BAD_REQUEST, "Requete invalide", ex.getMessage(), req, "bad-request"));
+  }
+
+  @ExceptionHandler(NoResourceFoundException.class)
+  public ResponseEntity<ProblemDetail> handleNoResource(
+      NoResourceFoundException ex, HttpServletRequest req) {
+    // Chemin sans handler ni ressource statique (ex. "/") : 404, pas 500.
+    return respond(
+        build(
+            HttpStatus.NOT_FOUND,
+            "Ressource introuvable",
+            "Aucune ressource pour " + req.getRequestURI(),
+            req,
+            "not-found"));
   }
 
   @ExceptionHandler(Exception.class)

@@ -59,6 +59,15 @@ class SecurityAccessControlTest {
   }
 
   @Test
+  void should_return_404_problem_for_unknown_path_without_resource() throws Exception {
+    // "/" est permitAll mais n'a ni handler ni page : 404 RFC 7807 (et non 500).
+    mockMvc
+        .perform(get("/"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.type").value("https://fittracker.dev/problems/not-found"));
+  }
+
+  @Test
   void should_return_403_when_accessing_other_users_resource() throws Exception {
     // Une session appartenant a un autre utilisateur (user B).
     UUID otherUserId = UUID.randomUUID();
