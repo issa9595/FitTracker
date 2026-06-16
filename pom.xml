@@ -229,6 +229,106 @@
                 </executions>
             </plugin>
 
+            <!--
+              JaCoCo : couverture mesuree sur deux agents (surefire + failsafe) car les tests
+              sont repartis entre unitaires (*Test, surefire -> jacoco.exec) et integration
+              (*IT, failsafe -> jacoco-it.exec). On fusionne les deux puis on genere le rapport
+              et on applique la regle de couverture (Phase 7).
+            -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <executions>
+                    <!-- Agent pour les tests unitaires (surefire) -> target/jacoco.exec -->
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <!-- Agent pour les tests d'integration (failsafe) -> target/jacoco-it.exec -->
+                    <execution>
+                        <id>prepare-agent-integration</id>
+                        <goals><goal>prepare-agent-integration</goal></goals>
+                    </execution>
+                    <!-- Fusion unit + IT en un seul fichier d'execution -->
+                    <execution>
+                        <id>merge</id>
+                        <phase>verify</phase>
+                        <goals><goal>merge</goal></goals>
+                        <configuration>
+                            <fileSets>
+                                <fileSet>
+                                    <directory>${project.build.directory}</directory>
+                                    <includes>
+                                        <include>jacoco.exec</include>
+                                        <include>jacoco-it.exec</include>
+                                    </includes>
+                                </fileSet>
+                            </fileSets>
+                            <destFile>${project.build.directory}/jacoco-merged.exec</destFile>
+                        </configuration>
+                    </execution>
+                    <!-- Rapport HTML/XML/CSV a partir de la fusion -->
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals><goal>report</goal></goals>
+                        <configuration>
+                            <dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+                            <excludes>
+                                <exclude>**/dto/**</exclude>
+                                <exclude>**/*Application.*</exclude>
+                                <exclude>**/config/**</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                    <!--
+                      Regle de couverture alignee sur la cible du brief, calibree sur les taux
+                      reels mesures (services a 98,5%, global a 79,2%) :
+                        - chaque *Service >= 80% lignes (le plus bas, JwtService, est a 88,9%) ;
+                        - couverture globale >= 70% lignes (hors dto/config/Application).
+                    -->
+                    <execution>
+                        <id>check</id>
+                        <phase>verify</phase>
+                        <goals><goal>check</goal></goals>
+                        <configuration>
+                            <dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+                            <excludes>
+                                <exclude>**/dto/**</exclude>
+                                <exclude>**/*Application.*</exclude>
+                                <exclude>**/config/**</exclude>
+                            </excludes>
+                            <rules>
+                                <!-- Couche metier : chaque service couvert a >= 80% des lignes -->
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>*Service</include></includes>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                                <!-- Projet : couverture globale des lignes >= 70% -->
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.70</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
