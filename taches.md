@@ -1,37 +1,37 @@
 # FitTracker — Suivi & checklist
 
-> Document de suivi de l'avancement par rapport au brief contractuel (`/Users/madayev/Downloads/fittracker_brief.md`).
+> Document de suivi de l'avancement par rapport au brief contractuel.
 > Rendu : **16/06/2026**. 1 phase = 1 livrable.
-> Légende : ✅ fait · 🔄 en cours · ⬜ à faire · ⏭️ phase ultérieure
+> Légende : ✅ fait · 🔄 en cours · ⬜ à faire · 🟡 documenté en évolution
 
-**Dernière mise à jour : 2026-06-16**
+**Dernière mise à jour : 2026-06-16 — projet complet (7/7 livrables mergés).**
 
 ---
 
-## Règles permanentes (§0) — à vérifier à CHAQUE commit/phase
+## Règles permanentes (§0) — respectées sur tout le projet
 
-- [ ] Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`, `ci:`), 1 commit = 1 changement atomique
-- [ ] Ne jamais merger une phase tant que la CI n'est pas verte
-- [ ] `README.md` + `docs/` mis à jour à chaque phase
-- [ ] Aucun secret en clair (que des `.env.example`)
-- [ ] Pas de `System.out.println` (SLF4J + Logback, JSON en prod)
-- [ ] Pas de code mort
-- [ ] Tests à chaque phase (≥ 1 unitaire + 1 intégration par fonctionnalité)
-- [ ] OpenAPI auto-généré maintenu à jour
+- [x] Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`, `ci:`), 1 commit = 1 changement atomique
+- [x] Ne jamais merger une phase tant que la CI n'est pas verte
+- [x] `README.md` + `docs/` mis à jour à chaque phase
+- [x] Aucun secret en clair (que des `.env.example`)
+- [x] Pas de `System.out.println` (SLF4J + Logback, JSON en prod)
+- [x] Pas de code mort
+- [x] Tests à chaque phase (≥ 1 unitaire + 1 intégration par fonctionnalité)
+- [x] OpenAPI auto-généré maintenu à jour
 
 ---
 
 ## Vue d'ensemble des phases
 
-| Phase | Livrable | Statut | PR / Branche |
+| Phase | Livrable | Statut | PR |
 |---|---|---|---|
 | 1 | Bootstrap, Docker, CI | ✅ Mergée | PR #1 |
 | 2 | Twelve-Factor, Compose, Nginx, logs JSON | ✅ Mergée | PR #2 |
-| 3 | REST, HATEOAS, RFC 7807, pagination, versioning | ✅ Mergée | PR #3 (`06eac24`) |
+| 3 | REST, HATEOAS, RFC 7807, pagination, versioning | ✅ Mergée | PR #3 |
 | 4 | Persistence ORM, relations, CRUD, RGPD | ✅ Mergée | PR #4 |
 | 5 | WebSockets temps réel, notifications | ✅ Mergée | PR #5 |
-| 6 | Sécurité durcie : Spring Security resource server, OWASP | ✅ Mergée | PR #6 |
-| 7 | Tests, couverture JaCoCo, CI/CD enrichie (release GHCR) | ✅ Mergée | PR #7 |
+| 6 | Sécurité durcie (Spring Security, OWASP) | ✅ Mergée | PR #6 |
+| 7 | Tests, couverture JaCoCo, CI/CD enrichie | ✅ Mergée | PR #7 |
 
 ---
 
@@ -70,107 +70,63 @@
 - [x] `docs/api-examples.md` (≥ 10 paires requête/réponse)
 - [x] Tests MockMvc par controller (nominal + erreur)
 
-> ⚠️ Phase 3 utilise un `InMemoryRepository` (POJOs en mémoire) — remplacé en phase 4 par JPA.
+---
+
+## ✅ Phase 4 — Persistence ORM, relations, CRUD, RGPD (MERGÉE)
+
+- [x] Migrations Flyway V1 (schéma) / V2 (seed exercices) / V3 (user sentinelle RGPD)
+- [x] `@OneToOne` User ↔ Profile avec `@MapsId` (PK partagée)
+- [x] `@OneToMany`/`@ManyToOne` LAZY (User → Sessions/Programs/Notifications)
+- [x] M-N avec attributs (`SessionExercise`) + M-N self-référençant (`Follow`), clés composites
+- [x] `@Version` (optimistic locking), soft-delete `@SQLDelete` + `@SQLRestriction`
+- [x] Auditing `@CreatedDate`/`@LastModifiedDate`, `Notification.payload` en JSONB
+- [x] Repositories `JpaRepository` (+ `JpaSpecificationExecutor` sur TrainingSession), suppression `InMemoryRepository`
+- [x] CRUD + règles métier (existence exercices, ownership, `@Transactional`)
+- [x] RGPD : `GET /api/v1/users/me/export` + `DELETE /api/v1/users/me` (anonymisation)
+- [x] Tests Testcontainers : 1-1, 1-N, M-N avec attrs, M-N self-ref + pipeline RGPD
+- [x] `docs/architecture.md` (ERD Mermaid + diagramme containers)
+- [x] `mvn verify` vert, CI verte, mergée
 
 ---
 
-## 🔄 Phase 4 — Persistence ORM, relations, CRUD, RGPD (EN COURS)
+## ✅ Phase 5 — WebSockets temps réel, notifications (MERGÉE)
 
-**Branche : `feature/phase-4-persistence`**
-
-### ⚠️ Bloqueur environnement local
-- [ ] **JDK 21 installé** (`java -version` KO actuellement → `brew install --cask temurin@21`)
-- [ ] **Docker daemon démarré** (requis pour Postgres local + Testcontainers)
-
-### Dépendances & config
-- [~] `pom.xml` : +JPA, Flyway, Postgres, Testcontainers, MapStruct *(édité, pas encore commit/vérifié)*
-- [ ] `application.yml` : `spring.jpa` (ddl-auto=validate, open-in-view=false) + `spring.flyway`
-- [ ] `src/test/resources/application-test.yml`
-
-### Migrations Flyway (`src/main/resources/db/migration/`)
-- [ ] `V1__init.sql` : 8 tables + FK + index (colonnes filtrées/triées)
-- [ ] `V2__seed_exercises.sql` : référentiel (running, MMA, lutte, muscu) — UUID déterministes
-- [ ] `V3__seed_deleted_user.sql` : user sentinelle pour anonymisation RGPD
-
-### Entités JPA
-- [ ] `@OneToOne` User ↔ Profile avec `@MapsId` (PK partagée)
-- [ ] `@OneToMany`/`@ManyToOne` LAZY + `@JsonIgnore` côté inverse (pas de cycles)
-- [ ] `@ManyToMany` avec entités d'association explicites (`SessionExercise`, `Follow`)
-- [ ] `@Version` (optimistic locking) sur entités modifiables
-- [ ] Soft-delete `deletedAt` via `@SQLDelete` + `@SQLRestriction`
-- [ ] Auditing `@CreatedDate`/`@LastModifiedDate` + `@EnableJpaAuditing`
-- [ ] `Notification.payload` en JSONB (`@JdbcTypeCode(SqlTypes.JSON)`)
-
-### Repositories
-- [ ] Tous en `JpaRepository`
-- [ ] `JpaSpecificationExecutor` pour les entités filtrables (TrainingSession)
-- [ ] Suppression de `InMemoryRepository` + adaptation des services
-
-### CRUD + règles métier
-- [ ] Création séance vérifie l'existence des exercices référencés
-- [ ] MAJ/suppression vérifie le propriétaire
-- [ ] `@Transactional` sur les services multi-entités
-
-### Endpoints RGPD
-- [ ] `GET /api/v1/users/me/export` (JSON exhaustif : sessions, programmes, follows, notifs, profil)
-- [ ] `DELETE /api/v1/users/me` → pipeline : anonymise sessions (→ user "deleted"), purge follows/profil/notifs
-
-### Tests
-- [ ] Tests unitaires services (Mockito + AssertJ)
-- [ ] Tests d'intégration **Testcontainers Postgres** : 1-1, 1-N, M-N avec attrs, M-N self-ref
-- [ ] Test d'intégration pipeline RGPD (export + anonymisation)
-
-### Documentation
-- [ ] `docs/architecture.md` avec **ERD Mermaid** + diagramme containers
-- [ ] `README.md` section persistance
-
-### Vérifications de fin de phase (brief §4)
-- [ ] `mvn verify` vert en local
-- [ ] Toutes les relations démontrées par un test d'intégration
-- [ ] Export RGPD exhaustif vérifié
-- [ ] CI verte sur la PR
-- [ ] **STOP** → validation utilisateur avant phase 5
+- [x] Config WebSocket STOMP (`/ws`, SimpleBroker `/topic`, heartbeats {10000,10000})
+- [x] Auth JWT au CONNECT (`JwtChannelInterceptor`, `Principal`)
+- [x] Reconnexion backoff documentée
+- [x] Service notifications (`ApplicationEventPublisher` → `NotificationListener` → BDD + `SimpMessagingTemplate`)
+- [x] Événements métier : séance d'un user suivi (FRIEND_SESSION_COMPLETED), nouveau PR (NEW_PR)
+- [x] UI minimale `notifications.html` (login + liste + marquer lu)
+- [x] Test d'intégration `WebSocketStompClient` (flux complet)
+- [x] `docs/websockets.md`
+- 🟡 Broker Redis multi-instance : documenté en évolution (mono-instance suffit pour la démo)
 
 ---
 
-## ⏭️ Phase 5 — WebSockets temps réel, notifications
+## ✅ Phase 6 — Sécurité durcie (version ciblée) (MERGÉE)
 
-- [ ] Config WebSocket STOMP (`/ws`, broker dev/Redis, destinations user + feed)
-- [ ] Auth JWT à l'ouverture (`ChannelInterceptor`, Principal)
-- [ ] Heartbeat `{10000, 10000}` + doc reconnexion backoff
-- [ ] Service notifications (`ApplicationEventPublisher` → `NotificationListener` → BDD + `SimpMessagingTemplate`)
-- [ ] Client UI minimal (`notifications.html`, `@stomp/stompjs`, login + liste + marquer lu)
-- [ ] Test d'intégration `WebSocketStompClient` (flux complet)
-- [ ] `docs/websockets.md`
-
----
-
-## ⏭️ Phase 6 — Sécurité durcie : JWT, OAuth2, TLS
-
-- [ ] `JwtService` (RS256 préféré), access 15 min + refresh 7 j en BDD (table `refresh_tokens`)
-- [ ] `POST /api/v1/auth/refresh` + `POST /api/v1/auth/logout`
-- [ ] Spring Security Resource Server (JWT internes)
-- [ ] OAuth2 Authorization Code (Google/GitHub) + endpoints oauth2
-- [ ] TLS Nginx (certif self-signed) + `scripts/rotate-certs.sh` + mTLS documenté
-- [ ] Hardening : CSRF off documenté, CORS whitelist, rate limiting Bucket4j+Redis, headers sécurité
-- [ ] OWASP Top 10 checklist dans `docs/security.md`
-- [ ] Tests : 401 sans token, 403 ressource d'autrui, OAuth2 démo, TLS via Nginx
+- [x] Spring Security Resource Server (JWT HS256, même secret que `JwtService`)
+- [x] BCrypt cost 12 (login vérifie le mot de passe, 401 générique anti-énumération)
+- [x] CORS whitelist + headers (HSTS, frameOptions deny, nosniff, referrer-policy)
+- [x] Rate limiting Bucket4j (60 req/min/IP sur `/auth/**`), 429 `problem+json`
+- [x] CSRF désactivé documenté, erreurs 401/403 en RFC 7807
+- [x] OWASP Top 10 checklist dans `docs/security.md`
+- [x] Tests : 401 sans token, 403 ressource d'autrui, rate limiter
+- 🟡 Évolutions documentées (non implémentées) : refresh tokens + `/auth/refresh` `/auth/logout`, OAuth2 Authorization Code (Google/GitHub), RS256, TLS Nginx + rotation, Bucket4j-Redis distribué
 
 ---
 
-## ✅ Phase 7 — Tests, couverture, CI/CD enrichie (version allégée)
-
-**Branche : `feature/phase-7-tests-cicd`**
+## ✅ Phase 7 — Tests, couverture, CI/CD enrichie (MERGÉE)
 
 - [x] Couverture JaCoCo double agent (Surefire + Failsafe) + merge, rapport en artefact CI
 - [x] Règle de couverture vérifiée à `verify` : **≥ 80 %** par `*Service` (réel 98,5 %), **≥ 70 %** global (réel 79,2 %)
 - [x] Tests unitaires de services (Mockito + AssertJ, nommage `should_<expected>_when_<context>`)
-- [x] Tests d'intégration Testcontainers Postgres + bout-en-bout WebSocket (existants, phases 4/5)
+- [x] Tests d'intégration Testcontainers Postgres + bout-en-bout WebSocket
 - [x] `release.yml` (tag `v*`, push GHCR, release notes auto)
 - [x] `docs/testing.md` (pyramide, double agent JaCoCo, exclusions)
-- [x] Spotless + Checkstyle en CI (job `lint`, déjà présent)
-- [~] Badge couverture README → mention textuelle + lien artefact (pas de service externe)
-- [ ] ~~(Optionnel) Cucumber JVM~~ — ignoré (version allégée, cf. `docs/testing.md` §6)
+- [x] Spotless + Checkstyle en CI (job `lint`)
+- [x] Couverture README : mention textuelle + lien artefact CI
+- 🟡 Cucumber JVM : ignoré (version allégée, cf. `docs/testing.md` §6)
 
 ---
 

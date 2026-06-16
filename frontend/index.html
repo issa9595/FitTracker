@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FitTracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
+  <style>
+    [x-cloak]{display:none!important}
+    body{background:#0b1020}
+  </style>
+</head>
+<body class="min-h-screen text-slate-100">
+  <!-- ====================== ÉCRAN AUTH ====================== -->
+  <div id="auth" class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-slate-900/70 border border-slate-800 rounded-2xl p-8 shadow-xl">
+      <div class="flex items-center gap-2 mb-1">
+        <div class="h-9 w-9 rounded-xl bg-emerald-500 flex items-center justify-center font-bold text-slate-900">FT</div>
+        <h1 class="text-xl font-semibold">FitTracker</h1>
+      </div>
+      <p class="text-sm text-slate-400 mb-6">Suivi d'entraînement &amp; notifications temps réel</p>
+
+      <div class="flex gap-1 mb-5 bg-slate-800/60 p-1 rounded-lg text-sm">
+        <button id="tabLogin" class="flex-1 py-1.5 rounded-md bg-slate-700">Connexion</button>
+        <button id="tabRegister" class="flex-1 py-1.5 rounded-md text-slate-400">Inscription</button>
+      </div>
+
+      <div class="space-y-3">
+        <input id="aEmail" type="email" placeholder="email" value="test@fittracker.dev"
+               class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 outline-none focus:border-emerald-500" />
+        <input id="aName" type="text" placeholder="nom affiché" value="Mon Nom"
+               class="hidden w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 outline-none focus:border-emerald-500" />
+        <input id="aPass" type="password" placeholder="mot de passe" value="ChangeMe123!"
+               class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 outline-none focus:border-emerald-500" />
+        <button id="aSubmit" class="w-full py-2 rounded-lg bg-emerald-500 text-slate-900 font-semibold hover:bg-emerald-400">Se connecter</button>
+        <p id="aError" class="text-sm text-rose-400 min-h-[1rem]"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== APP ====================== -->
+  <div id="app" class="hidden min-h-screen flex flex-col">
+    <!-- top bar -->
+    <header class="border-b border-slate-800 bg-slate-900/60 sticky top-0 z-10">
+      <div class="max-w-5xl mx-auto px-4 h-14 flex items-center gap-4">
+        <div class="flex items-center gap-2">
+          <div class="h-7 w-7 rounded-lg bg-emerald-500 flex items-center justify-center font-bold text-slate-900 text-sm">FT</div>
+          <span class="font-semibold">FitTracker</span>
+        </div>
+        <nav id="nav" class="flex gap-1 text-sm ml-2">
+          <button data-view="dash" class="px-3 py-1.5 rounded-lg">Tableau de bord</button>
+          <button data-view="sessions" class="px-3 py-1.5 rounded-lg">Séances</button>
+          <button data-view="social" class="px-3 py-1.5 rounded-lg">Social</button>
+          <button data-view="profile" class="px-3 py-1.5 rounded-lg">Profil</button>
+        </nav>
+        <div class="ml-auto flex items-center gap-3">
+          <div id="wsDot" class="h-2 w-2 rounded-full bg-slate-600" title="WebSocket"></div>
+          <button id="bell" class="relative px-2 py-1 rounded-lg hover:bg-slate-800">
+            🔔
+            <span id="bellCount" class="hidden absolute -top-1 -right-1 text-[10px] bg-rose-500 text-white rounded-full px-1.5 py-0.5"></span>
+          </button>
+          <span id="meName" class="text-sm text-slate-300"></span>
+          <button id="logout" class="text-sm text-slate-400 hover:text-slate-200">Déconnexion</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto w-full px-4 py-6 flex-1">
+      <!-- ---- Dashboard ---- -->
+      <section data-section="dash" class="space-y-5">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+            <div class="text-xs text-slate-400">Séances</div><div id="kSessions" class="text-2xl font-semibold">–</div>
+          </div>
+          <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+            <div class="text-xs text-slate-400">Abonnements</div><div id="kFollows" class="text-2xl font-semibold">–</div>
+          </div>
+          <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+            <div class="text-xs text-slate-400">Notifs non lues</div><div id="kUnread" class="text-2xl font-semibold">–</div>
+          </div>
+          <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+            <div class="text-xs text-slate-400">Exercices au catalogue</div><div id="kExos" class="text-2xl font-semibold">–</div>
+          </div>
+        </div>
+        <div>
+          <h2 class="font-semibold mb-2">Dernières séances</h2>
+          <div id="dashSessions" class="space-y-2 text-sm text-slate-300"></div>
+        </div>
+      </section>
+
+      <!-- ---- Séances ---- -->
+      <section data-section="sessions" class="hidden grid md:grid-cols-3 gap-5">
+        <div class="md:col-span-1 bg-slate-900/60 border border-slate-800 rounded-xl p-4 h-fit">
+          <h2 class="font-semibold mb-3">Nouvelle séance</h2>
+          <div class="space-y-2 text-sm">
+            <label class="block text-slate-400">Type</label>
+            <select id="sType" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700">
+              <option>RUNNING</option><option>STRENGTH</option><option>MMA</option><option>WRESTLING</option><option>OTHER</option>
+            </select>
+            <label class="block text-slate-400">Durée (secondes)</label>
+            <input id="sDur" type="number" value="1800" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700" />
+            <label class="block text-slate-400">Notes</label>
+            <input id="sNotes" type="text" placeholder="optionnel" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700" />
+            <button id="sCreate" class="w-full py-2 mt-1 rounded-lg bg-emerald-500 text-slate-900 font-semibold hover:bg-emerald-400">Créer la séance</button>
+          </div>
+        </div>
+        <div class="md:col-span-2">
+          <h2 class="font-semibold mb-3">Mes séances</h2>
+          <div id="sessionList" class="space-y-3"></div>
+        </div>
+      </section>
+
+      <!-- ---- Social ---- -->
+      <section data-section="social" class="hidden grid md:grid-cols-2 gap-5">
+        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 h-fit">
+          <h2 class="font-semibold mb-1">Suivre un utilisateur</h2>
+          <p class="text-xs text-slate-400 mb-3">Ton identifiant (à partager) :
+            <code id="myId" class="text-emerald-400 cursor-pointer" title="copier"></code></p>
+          <div class="flex gap-2">
+            <input id="followId" placeholder="identifiant à suivre (UUID)" class="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+            <button id="followBtn" class="px-3 py-2 rounded-lg bg-emerald-500 text-slate-900 font-semibold">Suivre</button>
+          </div>
+          <p id="followMsg" class="text-xs mt-2 min-h-[1rem]"></p>
+          <h3 class="font-semibold mt-5 mb-2 text-sm">Je suis</h3>
+          <div id="followList" class="space-y-2 text-sm"></div>
+        </div>
+        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+          <h2 class="font-semibold mb-3">Fil de notifications</h2>
+          <div id="notifList" class="space-y-2 text-sm"></div>
+        </div>
+      </section>
+
+      <!-- ---- Profil ---- -->
+      <section data-section="profile" class="hidden max-w-md">
+        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-5 space-y-3 text-sm">
+          <h2 class="font-semibold">Mon profil</h2>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block text-slate-400">Taille (cm)</label>
+              <input id="pHeight" type="number" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700" /></div>
+            <div><label class="block text-slate-400">Poids (kg)</label>
+              <input id="pWeight" type="number" step="0.1" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700" /></div>
+            <div><label class="block text-slate-400">Objectif (kg)</label>
+              <input id="pGoal" type="number" step="0.1" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700" /></div>
+          </div>
+          <label class="block text-slate-400">Bio</label>
+          <textarea id="pBio" rows="3" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700"></textarea>
+          <button id="pSave" class="px-4 py-2 rounded-lg bg-emerald-500 text-slate-900 font-semibold">Enregistrer</button>
+          <p id="pMsg" class="text-xs text-emerald-400 min-h-[1rem]"></p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const API = 'http://localhost:8080';
+    let token = null, me = null, exercises = [], stomp = null;
+
+    const $ = s => document.querySelector(s);
+    const $$ = s => document.querySelectorAll(s);
+    const esc = s => (s ?? '').toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, {
+        ...opts,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: 'Bearer ' + token } : {}),
+          ...(opts.headers || {})
+        }
+      });
+      if (res.status === 204) return null;
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.detail || body.title || ('Erreur ' + res.status));
+      return body;
+    }
+
+    // ---------------- AUTH ----------------
+    let mode = 'login';
+    function setMode(m) {
+      mode = m;
+      $('#aName').classList.toggle('hidden', m === 'login');
+      $('#aSubmit').textContent = m === 'login' ? 'Se connecter' : 'Créer le compte';
+      $('#tabLogin').className = 'flex-1 py-1.5 rounded-md ' + (m==='login'?'bg-slate-700':'text-slate-400');
+      $('#tabRegister').className = 'flex-1 py-1.5 rounded-md ' + (m==='register'?'bg-slate-700':'text-slate-400');
+      $('#aError').textContent = '';
+    }
+    $('#tabLogin').onclick = () => setMode('login');
+    $('#tabRegister').onclick = () => setMode('register');
+
+    $('#aSubmit').onclick = async () => {
+      $('#aError').textContent = '';
+      const email = $('#aEmail').value.trim(), password = $('#aPass').value;
+      try {
+        const path = mode === 'login' ? '/api/v1/auth/login' : '/api/v1/auth/register';
+        const payload = mode === 'login'
+          ? { email, password }
+          : { email, password, displayName: $('#aName').value.trim() || email };
+        const auth = await api(path, { method: 'POST', body: JSON.stringify(payload) });
+        token = auth.accessToken;
+        await enterApp();
+      } catch (e) { $('#aError').textContent = e.message; }
+    };
+
+    async function enterApp() {
+      me = await api('/api/v1/users/me');
+      $('#auth').classList.add('hidden');
+      $('#app').classList.remove('hidden');
+      $('#meName').textContent = me.displayName || me.email;
+      $('#myId').textContent = me.id;
+      connectWs();
+      show('dash');
+      await Promise.all([loadExercises(), refreshAll()]);
+    }
+
+    // ---------------- NAVIGATION ----------------
+    function show(view) {
+      $$('#nav button').forEach(b => b.className = 'px-3 py-1.5 rounded-lg ' +
+        (b.dataset.view === view ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:bg-slate-800'));
+      $$('[data-section]').forEach(s => s.classList.toggle('hidden', s.dataset.section !== view));
+      if (view === 'profile') loadProfile();
+    }
+    $$('#nav button').forEach(b => b.onclick = () => show(b.dataset.view));
+    $('#bell').onclick = () => { show('social'); $('#bellCount').classList.add('hidden'); };
+    $('#myId').onclick = () => navigator.clipboard?.writeText(me.id);
+    $('#logout').onclick = () => { stomp?.deactivate(); location.reload(); };
+
+    // ---------------- DATA ----------------
+    async function loadExercises() {
+      const page = await api('/api/v1/exercises?size=50');
+      exercises = page.content || [];
+      $('#kExos').textContent = exercises.length;
+    }
+
+    async function refreshAll() { await Promise.all([loadSessions(), loadFollows(), loadNotifs()]); }
+
+    async function loadSessions() {
+      const page = await api('/api/v1/training-sessions?size=50&sort=startedAt,desc');
+      const items = page.content || [];
+      $('#kSessions').textContent = items.length;
+      $('#dashSessions').innerHTML = items.slice(0, 5).map(s =>
+        `<div class="bg-slate-900/60 border border-slate-800 rounded-lg px-3 py-2 flex justify-between">
+           <span>${esc(s.type)} · ${Math.round((s.durationSeconds||0)/60)} min</span>
+           <span class="text-slate-500">${new Date(s.startedAt).toLocaleString()}</span></div>`).join('') || '<p class="text-slate-500">Aucune séance.</p>';
+      $('#sessionList').innerHTML = items.map(renderSession).join('') || '<p class="text-slate-500 text-sm">Aucune séance.</p>';
+    }
+
+    function renderSession(s) {
+      const exos = (s.exercises || []).map(e => {
+        const ex = exercises.find(x => x.id === e.exerciseId);
+        const bits = [e.sets&&`${e.sets}×${e.reps??''}`, e.weightKg&&`${e.weightKg}kg`, e.distanceM&&`${e.distanceM}m`, e.timeSeconds&&`${e.timeSeconds}s`].filter(Boolean).join(' · ');
+        return `<li class="text-slate-400">${esc(ex?.name||e.exerciseId)} ${bits?`— ${bits}`:''}</li>`;
+      }).join('');
+      const opts = exercises.map(x => `<option value="${x.id}">${esc(x.name)} (${x.unit})</option>`).join('');
+      return `<div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+        <div class="flex justify-between items-center">
+          <div><span class="font-semibold">${esc(s.type)}</span>
+            <span class="text-slate-500 text-sm"> · ${Math.round((s.durationSeconds||0)/60)} min · ${new Date(s.startedAt).toLocaleDateString()}</span></div>
+          <button onclick="delSession('${s.id}')" class="text-rose-400 text-sm hover:text-rose-300">supprimer</button>
+        </div>
+        ${s.notes?`<p class="text-sm text-slate-400 mt-1">${esc(s.notes)}</p>`:''}
+        <ul class="text-sm mt-2 space-y-0.5">${exos||'<li class="text-slate-600">Aucun exercice.</li>'}</ul>
+        <div class="flex gap-2 mt-3 text-sm">
+          <select id="ex-${s.id}" class="flex-1 px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700">${opts}</select>
+          <input id="reps-${s.id}" type="number" placeholder="reps" class="w-16 px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700" />
+          <input id="kg-${s.id}" type="number" step="0.5" placeholder="kg" class="w-16 px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700" />
+          <button onclick="addExo('${s.id}')" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600">+ exo</button>
+        </div></div>`;
+    }
+
+    $('#sCreate').onclick = async () => {
+      try {
+        await api('/api/v1/training-sessions', { method: 'POST', body: JSON.stringify({
+          startedAt: new Date().toISOString(),
+          durationSeconds: parseInt($('#sDur').value || '0', 10),
+          type: $('#sType').value,
+          notes: $('#sNotes').value || null
+        })});
+        $('#sNotes').value = '';
+        await loadSessions();
+      } catch (e) { alert(e.message); }
+    };
+
+    window.addExo = async (sid) => {
+      try {
+        await api(`/api/v1/training-sessions/${sid}/exercises`, { method: 'POST', body: JSON.stringify({
+          exerciseId: $('#ex-'+sid).value,
+          sets: 1,
+          reps: parseInt($('#reps-'+sid).value || '0', 10) || null,
+          weightKg: parseFloat($('#kg-'+sid).value) || null
+        })});
+        await loadSessions();
+      } catch (e) { alert(e.message); }
+    };
+    window.delSession = async (sid) => {
+      if (!confirm('Supprimer cette séance ?')) return;
+      try { await api('/api/v1/training-sessions/' + sid, { method: 'DELETE' }); await loadSessions(); }
+      catch (e) { alert(e.message); }
+    };
+
+    // ---------------- SOCIAL ----------------
+    async function loadFollows() {
+      const list = await api(`/api/v1/users/${me.id}/follows`);
+      $('#kFollows').textContent = list.length;
+      $('#followList').innerHTML = list.map(f =>
+        `<div class="flex justify-between items-center bg-slate-800/50 rounded-lg px-3 py-2">
+           <code class="text-slate-300 text-xs">${f.followeeId}</code>
+           <button onclick="unfollow('${f.followeeId}')" class="text-rose-400 text-xs">retirer</button></div>`).join('')
+        || '<p class="text-slate-500">Tu ne suis personne.</p>';
+    }
+    $('#followBtn').onclick = async () => {
+      const id = $('#followId').value.trim();
+      $('#followMsg').textContent = '';
+      try {
+        await api(`/api/v1/users/${me.id}/follows`, { method: 'POST', body: JSON.stringify({ followeeId: id }) });
+        $('#followId').value = '';
+        $('#followMsg').className = 'text-xs mt-2 text-emerald-400'; $('#followMsg').textContent = 'Abonné ✓';
+        await loadFollows();
+      } catch (e) { $('#followMsg').className = 'text-xs mt-2 text-rose-400'; $('#followMsg').textContent = e.message; }
+    };
+    window.unfollow = async (fid) => {
+      try { await api(`/api/v1/users/${me.id}/follows/${fid}`, { method: 'DELETE' }); await loadFollows(); }
+      catch (e) { alert(e.message); }
+    };
+
+    // ---------------- NOTIFICATIONS ----------------
+    function notifLabel(n) {
+      const map = { FRIEND_SESSION_COMPLETED: 'Un ami a terminé une séance', NEW_PR: 'Nouveau record perso 💪',
+                    PROGRAM_INVITE: 'Invitation à un programme', ACHIEVEMENT: 'Succès débloqué 🏆' };
+      return map[n.type] || n.type;
+    }
+    async function loadNotifs() {
+      const page = await api('/api/v1/notifications?size=30');
+      const items = page.content || [];
+      const unread = items.filter(n => !n.readAt).length;
+      $('#kUnread').textContent = unread;
+      $('#notifList').innerHTML = items.map(renderNotif).join('') || '<p class="text-slate-500">Aucune notification.</p>';
+    }
+    function renderNotif(n, live) {
+      const id = 'n-' + n.id;
+      return `<div id="${id}" class="rounded-lg px-3 py-2 border ${n.readAt?'border-slate-800 bg-slate-900/40':'border-emerald-700/40 bg-emerald-900/10'}">
+        <div class="flex justify-between items-start gap-2">
+          <div><div class="${n.readAt?'text-slate-300':'font-medium'}">${esc(notifLabel(n))}</div>
+            <div class="text-[11px] text-slate-500">${n.createdAt?new Date(n.createdAt).toLocaleString():'à l\\'instant'}</div></div>
+          ${n.readAt?'':`<button onclick="markRead('${n.id}')" class="text-[11px] text-emerald-400 shrink-0">marquer lu</button>`}
+        </div></div>`;
+    }
+    window.markRead = async (id) => {
+      try { await api(`/api/v1/notifications/${id}/read`, { method: 'PATCH' }); await loadNotifs(); }
+      catch (e) { alert(e.message); }
+    };
+
+    // ---------------- WEBSOCKET ----------------
+    function connectWs() {
+      stomp = new StompJs.Client({
+        webSocketFactory: () => new SockJS(API + '/ws'),
+        connectHeaders: { Authorization: 'Bearer ' + token },
+        reconnectDelay: 5000, heartbeatIncoming: 10000, heartbeatOutgoing: 10000,
+        onConnect: () => {
+          $('#wsDot').className = 'h-2 w-2 rounded-full bg-emerald-500';
+          stomp.subscribe('/topic/notifications/' + me.id, (msg) => onLiveNotif(JSON.parse(msg.body)));
+        },
+        onWebSocketClose: () => { $('#wsDot').className = 'h-2 w-2 rounded-full bg-rose-500'; }
+      });
+      stomp.activate();
+    }
+    function onLiveNotif(n) {
+      const c = $('#bellCount');
+      c.textContent = (parseInt(c.textContent || '0', 10) || 0) + 1;
+      c.classList.remove('hidden');
+      $('#notifList').insertAdjacentHTML('afterbegin', renderNotif(n, true));
+      loadNotifs();
+    }
+
+    // ---------------- PROFIL ----------------
+    async function loadProfile() {
+      try {
+        const p = await api('/api/v1/users/me/profile');
+        $('#pHeight').value = p.heightCm ?? ''; $('#pWeight').value = p.weightKg ?? '';
+        $('#pGoal').value = p.goalWeightKg ?? ''; $('#pBio').value = p.bio ?? '';
+      } catch (e) { /* profil vide */ }
+    }
+    $('#pSave').onclick = async () => {
+      try {
+        await api('/api/v1/users/me/profile', { method: 'PUT', body: JSON.stringify({
+          heightCm: parseInt($('#pHeight').value, 10) || null,
+          weightKg: parseFloat($('#pWeight').value) || null,
+          goalWeightKg: parseFloat($('#pGoal').value) || null,
+          bio: $('#pBio').value || null
+        })});
+        $('#pMsg').textContent = 'Profil enregistré ✓';
+        setTimeout(() => $('#pMsg').textContent = '', 2000);
+      } catch (e) { alert(e.message); }
+    };
+
+    setMode('login');
+  </script>
+</body>
+</html>
